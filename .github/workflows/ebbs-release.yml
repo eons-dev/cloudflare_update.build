@@ -1,0 +1,23 @@
+name: RELEASE THE EBBS!!!
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  deploy:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    - name: Install ebbs
+      run: |
+        pip install ebbs
+    - name: Build
+      run: |
+        ebbs -v . --repo-username "${{ secrets.INFRASTRUCTURE_USERNAME }}" --repo-password "${{ secrets.INFRASTRUCTURE_PASSWORD }}" --version "${{ github.event.release.tag_name }}" --event "release"
