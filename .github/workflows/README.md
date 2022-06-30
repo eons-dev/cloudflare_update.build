@@ -4,18 +4,18 @@ Use [ebbs](https://github.com/eons-dev/bin_ebbs) for your git repo!
 
 ## Usage
 
-### build.json
-Make sure you have a valid build.json in the root of your directory. This would be something like:
+### build/github.json
+Make sure you have a valid EBBS github.json in the build folder of your directory. This would be something like:
 
 ```json
 {
   "clear_build_path" : true,
-  "ebbs_next": [
+  "next": [
     {
       "build" : "publish",
       "run_when" : "release",
       "copy" : [
-        {"../inc/" : "inc/"}
+        {"../../inc/" : "inc/"}
       ],
       "config" : {
         "visibility" : "public"

@@ -1,4 +1,4 @@
-name: EBBS INVOKATION
+name: ebbs push event
 
 on:
   push:
@@ -18,6 +18,11 @@ jobs:
     - name: Install ebbs
       run: |
         pip install ebbs
+        pip install eot
     - name: Build
+      env:
+        repo_username: ${{ secrets.INFRASTRUCTURE_USERNAME }}
+        repo_password: ${{ secrets.INFRASTRUCTURE_PASSWORD }}
       run: |
-        ebbs -v . --repo-username "${{ secrets.INFRASTRUCTURE_USERNAME }}" --repo-password "${{ secrets.INFRASTRUCTURE_PASSWORD }}" --event "push"
+        cd build
+        ebbs -v . --config "github.json" --event "push"

@@ -1,4 +1,4 @@
-name: RELEASE THE EBBS!!!
+name: ebbs release event
 
 on:
   release:
@@ -18,6 +18,15 @@ jobs:
     - name: Install ebbs
       run: |
         pip install ebbs
+        pip install eot
     - name: Build
+      env:
+        pypi_username: ${{ secrets.PYPI_USERNAME }}
+        pypi_password: ${{ secrets.PYPI_PASSWORD }}
+        docker_username: ${{ secrets.DOCKER_USERNAME }}
+        docker_password: ${{ secrets.DOCKER_PASSWORD }}
+        repo_username: ${{ secrets.INFRASTRUCTURE_USERNAME }}
+        repo_password: ${{ secrets.INFRASTRUCTURE_PASSWORD }}
       run: |
-        ebbs -v . --repo-username "${{ secrets.INFRASTRUCTURE_USERNAME }}" --repo-password "${{ secrets.INFRASTRUCTURE_PASSWORD }}" --version "${{ github.event.release.tag_name }}" --event "release"
+        cd build
+        ebbs -v . --config "github.json" --version "${{ github.event.release.tag_name }}" --event "release"
