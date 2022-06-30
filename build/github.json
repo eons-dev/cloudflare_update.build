@@ -1,5 +1,5 @@
 {
-  "name" : "cpp",
+  "name" : "cloudflare_update",
   "type" : "build",
   "build_in" : "github",
   "clear_build_path" : true,
