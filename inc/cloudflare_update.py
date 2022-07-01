@@ -37,20 +37,11 @@ class cloudflare_update(Builder):
         this.requiredKWArgs.append("cf_email")
         this.requiredKWArgs.append("cf_token")  # global api key (TODO: can this work with other tokens?)
 
-        # These are now a part of domains.
-        # this.optionalKWArgs['dmarc'] = {
-        #     "v" : "DMARC1",
-        #     "p" : "reject",
-        #     "pct" : "100",
-        #     "fo" : "1",
-        #     "adkim" : "s",
-        #     "aspf" : "s"
-        # }
-        # this.optionalKWArgs['spf'] = "v=spf1 include:_spf.google.com ~all" #TODO: Expand spf to take multiple values, like dmarc.
-
+        this.optionalKWArgs['only_apply_to'] = []
         this.optionalKWArgs['backup'] = True
         this.optionalKWArgs['backup_path'] = "bak"
         this.optionalKWArgs['dry_run'] = True
+        this.optionalKWArgs['errors_are_fatal'] = False
 
         this.dns_allows_multiple_records = ['TXT', 'MX']
 
@@ -81,14 +72,20 @@ class cloudflare_update(Builder):
         this.cf = CloudFlare.CloudFlare(**args)
 
     def GetDomainConfig(this, domain_name, domain_id):
-        params = {'name': f'_config.{domain_name}', 'match': 'all', 'type': 'TXT'}
-        dns_records = this.cf.zones.dns_records.get(domain_id, params=params)['result']
-        logging.debug(f"Config records: {dns_records}")
-        config_contents = dns_records[0]['content']
-        ret = json.loads(config_contents)
-        if ('type' not in ret):
-            raise Exception(
-                f'No valid config found for {domain_name}. Please ensure the domain has a _config record containing valid json. Config contents: {config_contents}')
+        ret = {}
+        try:
+            params = {'name': f'_config.{domain_name}', 'match': 'all', 'type': 'TXT'}
+            dns_records = this.cf.zones.dns_records.get(domain_id, params=params)['result']
+            logging.debug(f"Config records: {dns_records}")
+
+            config_contents = dns_records[0]['content']
+            ret = json.loads(config_contents)
+            if ('type' not in ret):
+                raise Exception(f"Please specify the 'type' of {domain_name} in the _config record.")
+        except Exception as e:
+            logging.error(f"No valid config found for {domain_name}. Please ensure the domain has a _config record containing valid json. Error: {str(e)}")
+            if (this.errors_are_fatal):
+                raise Exception("Invalid _config")
         return ret
 
     def EvaluateSetting(this, setting, domain_name, domain_config):
@@ -105,7 +102,7 @@ class cloudflare_update(Builder):
             return ret
 
         else:
-            evaluated_setting = eval(f"F\"{setting}\"").replace("@", domain_name)
+            evaluated_setting = eval(f"f\"{setting}\"")
 
             #Check original type and return the proper value.
             if (isinstance(setting, (bool, int, float)) and evaluated_setting == str(setting)):
@@ -140,8 +137,8 @@ class cloudflare_update(Builder):
         page_number = 0
         while True:
             page_number += 1
-            raw_results = this.cf.zones.get(params={'per_page': 2, 'page': page_number}) #testing
-            # raw_results = this.cf.zones.get(params={'per_page': 20, 'page': page_number})
+            # raw_results = this.cf.zones.get(params={'per_page': 2, 'page': page_number}) #testing
+            raw_results = this.cf.zones.get(params={'per_page': 20, 'page': page_number})
             domains = raw_results['result']
 
             for domain in domains:
@@ -150,6 +147,10 @@ class cloudflare_update(Builder):
                 domain_id = domain['id']
                 domain_name = domain['name']
                 logging.info(f"{domain_name} ({domain_id})")
+
+                if (len(this.only_apply_to) and domain_name not in this.only_apply_to):
+                    logging.info(f"Skipping {domain_name}: not in {this.only_apply_to}")
+                    continue
 
                 # DNS Records
                 try:
@@ -201,9 +202,11 @@ class cloudflare_update(Builder):
         page_number = 0
         while True:
             page_number += 1
-            raw_results = this.cf.zones.get(params={'per_page': 2, 'page': page_number}) #testing
-            # raw_results = this.cf.zones.get(params={'per_page': 20, 'page': page_number})
+            # raw_results = this.cf.zones.get(params={'per_page': 2, 'page': page_number}) #testing
+            raw_results = this.cf.zones.get(params={'per_page': 20, 'page': page_number})
             domains = raw_results['result']
+
+            domains_with_errors = []
 
             for domain in domains:
                 time.sleep(1)  # rate limiting
@@ -212,6 +215,10 @@ class cloudflare_update(Builder):
                 domain_name = domain['name']
                 domain_config = this.GetDomainConfig(domain_name, domain_id)  # REQUEST
                 logging.info(f"{domain_name} ({domain_id}): {domain_config}")
+
+                if (len(this.only_apply_to) and domain_name not in this.only_apply_to):
+                    logging.info(f"Skipping {domain_name}: not in {this.only_apply_to}")
+                    continue
 
                 for setting in this.config['domains']:
                     if ("match" not in setting):
@@ -313,8 +320,10 @@ class cloudflare_update(Builder):
                             record_data = {
                                 'name': dns['domain'],
                                 'type': dns['type'],
-                                'content': dns['content'],
+                                'content': dns['content']
                             }
+                            if (dns['type'] not in this.dns_allows_multiple_records):
+                                record_data['proxied'] = True
 
                             try:
                                 result = {}
@@ -331,7 +340,11 @@ class cloudflare_update(Builder):
                                     logging.info(f"Result: {result}")
 
                             except CloudFlare.exceptions.CloudFlareAPIError as e:
-                                exit('API call failed (%d): %s\nData: %s' % (e, e, record_data))
+                                logging.error('API call failed (%d): %s\nData: %s' % (e, e, record_data))
+                                if (this.errors_are_fatal):
+                                    exit()
+                                else:
+                                    domains_with_errors.append(domain)
                     ############ END DNS SETTINGS ############
 
                     ############ BEGIN PAGE RULE SETTINGS ############
@@ -384,7 +397,11 @@ class cloudflare_update(Builder):
                                         logging.info(f"Result: {result}")
 
                             except CloudFlare.exceptions.CloudFlareAPIError as e:
-                                exit('API call failed (%d): %s\nData: %s' % (e, e, rule_data))
+                                logging.error('API call failed (%d): %s\nData: %s' % (e, e, rule_data))
+                                if (this.errors_are_fatal):
+                                    exit()
+                                else:
+                                    domains_with_errors.append(domain)
                     ############ END PAGE RULE SETTINGS ############
 
                     ############ BEGIN FIREWALL RULE SETTINGS ############
@@ -447,7 +464,11 @@ class cloudflare_update(Builder):
                                         logging.info(f"Result: {result}")
 
                             except CloudFlare.exceptions.CloudFlareAPIError as e:
-                                exit('API call failed (%d): %s\nData: %s' % (e, e, rule_data))
+                                logging.error('API call failed (%d): %s\nData: %s' % (e, e, rule_data))
+                                if (this.errors_are_fatal):
+                                    exit()
+                                else:
+                                    domains_with_errors.append(domain)
                         ############ END FIREWALL RULE SETTINGS ############
 
                 logging.info(f"---- done with {domain_name} ----")
@@ -457,3 +478,7 @@ class cloudflare_update(Builder):
             total_pages = raw_results['result_info']['total_pages']
             if page_number == total_pages:
                 break
+
+        logging.info("Complete!")
+        if (len(domains_with_errors)):
+            logging.error(f"The following domains had errors: {domains_with_errors}")
