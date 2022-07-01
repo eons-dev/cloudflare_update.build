@@ -52,6 +52,8 @@ class cloudflare_update(Builder):
         this.optionalKWArgs['backup_path'] = "bak"
         this.optionalKWArgs['dry_run'] = True
 
+        this.dns_allows_multiple_records = ['TXT', 'MX']
+
     # Required Builder method. See that class for details.
     def Build(this):
         this.Validate()
@@ -73,8 +75,8 @@ class cloudflare_update(Builder):
             'token': this.cf_token,
             'raw': True
         }
-        if logging.DEBUG >= logging.root.level:
-            args['debug'] = True
+        # if logging.DEBUG >= logging.root.level:
+        #     args['debug'] = True
 
         this.cf = CloudFlare.CloudFlare(**args)
 
@@ -204,7 +206,6 @@ class cloudflare_update(Builder):
             domains = raw_results['result']
 
             for domain in domains:
-
                 time.sleep(1)  # rate limiting
 
                 domain_id = domain['id']
@@ -218,7 +219,7 @@ class cloudflare_update(Builder):
                     setting_can_be_applied = True
                     logging.debug(f"Trying to match with {setting['match']}")
                     for key, value in setting['match'].items():
-                        if (domain_config[key] != value):
+                        if (key not in domain_config or domain_config[key] != value):
                             setting_can_be_applied = False
                             break
                     if (not setting_can_be_applied):
@@ -267,8 +268,8 @@ class cloudflare_update(Builder):
                         for i, dns in enumerate(setting['dns']):
 
                             # rate limiting. keep us under 4 / sec.
-                            if (not i % 2):
-                                time.sleep(1)
+                            # if (not i % 2): #at limit (3 possible requests per iteration).
+                            time.sleep(1)
 
                             logging.debug(f"Applying DNS Setting: {dns}")
 
@@ -276,22 +277,38 @@ class cloudflare_update(Builder):
                                 logging.error(f"Invalid dns entry: {dns}")
                                 continue
 
-                            params = {'name': dns['domain'], 'match': 'all', 'type': dns['type']}
+                            params = {'name': dns['domain'], 'match': 'all'}
+                            if (dns['type'] in this.dns_allows_multiple_records):
+                                params['type'] = dns['type']
                             dns_records = this.cf.zones.dns_records.get(domain_id, params=params)['result']  # REQUEST
-                            record_to_update = None
+                            existing_record = None
 
-                            # Check for the proper record to update.
+                            #Check for the proper record to update.
+                            #This logic is complex in order to handle cases where you want to replace an A record with a CNAME or some other record type transmutation.
                             if len(dns_records):
-                                if (dns['type'] in ['TXT']):  # Only certain record types allow duplicates in the first place
+                                if (dns['type'] in this.dns_allows_multiple_records and 'update_term' in dns):
                                     for existing in dns_records:
-                                        if (dns['update_term'] in existing['content']):
-                                            record_to_update = existing
+                                        if (dns['domain'] == existing['name'] and dns['update_term'] in existing['content']):
+                                            existing_record = existing
+                                            logging.debug(f"Will update existing {existing_record['type']} record containing: {existing_record['content']}")
                                             break
+                                    if existing_record is None:
+                                        logging.debug(f"Could not find existing record matching {dns['domain']} and update_term {dns['update_term']}")
                                 else:
-                                    for existing in dns_records:
-                                        if (dns['domain'] == existing['name']):
-                                            record_to_update = existing
-                                            break
+                                    single_instance_dns_records = [d for d in dns_records if d['type'] not in this.dns_allows_multiple_records]
+                                    if (len(single_instance_dns_records) == 1):
+                                        existing_record = dns_records[0]
+                                        logging.debug(f"Will update existing {existing_record['type']} record")
+                                    else:
+                                        for existing in single_instance_dns_records:
+                                            if (dns['domain'] == existing['name'] and dns['type'] == existing['type']):
+                                                existing_record = existing
+                                                logging.debug(f"Multiple matches found for {dns['domain']}. Using existing {dns['type']} record.")
+                                                break
+                                    if existing_record is None:
+                                        logging.warn(f"Could not find appropriate existing record for {dns['domain']}. Candidates were: {single_instance_dns_records}")
+                            else:
+                                logging.debug(f"No matching records found on {domain_name} with params: {params}")
 
                             record_data = {
                                 'name': dns['domain'],
@@ -302,29 +319,16 @@ class cloudflare_update(Builder):
                             try:
                                 result = {}
 
-                                if record_to_update is not None:
-                                    # for dns_record in dns_records['result']:
-                                    #     print(f"Record: {dns_record}")
-                                    r_name = record_to_update['name']
-                                    r_type = record_to_update['type']
-                                    r_value = record_to_update['content']
-                                    r_id = record_to_update['id']
-                                    logging.debug(
-                                        f"Record: id: {r_id}, name: {r_name}, type: {r_type}, value: {r_value}")
-
-                                    logging.info(
-                                        f"Will update {dns['domain']} in {domain_name} from {record_to_update['content']} to {dns['content']}")
+                                if existing_record is not None:
+                                    logging.info(f"Will delete existing record: {existing_record}")
                                     if (not this.dry_run):
-                                        result = this.cf.zones.dns_records.put(domain_id, r_id, data=record_data)  # REQUEST: Update
+                                        result = this.cf.zones.dns_records.delete(domain_id, existing_record['id']) #POSSIBLE REQUEST: Delete
                                         logging.info(f"Result: {result}")
 
-                                else:
-                                    logging.info(f"No matching {dns['type']} record found for {dns['domain']}")
-
-                                    logging.info(f"Will create {dns['domain']} in {domain_name}")
-                                    if (not this.dry_run):
-                                        result = this.cf.zones.dns_records.post(domain_id, data=record_data)  # REQUEST: Create
-                                        logging.info(f"Result: {result}")
+                                logging.info(f"Will create {dns['type']} record {dns['domain']} in {domain_name}")
+                                if (not this.dry_run):
+                                    result = this.cf.zones.dns_records.post(domain_id, data=record_data)  # REQUEST: Create
+                                    logging.info(f"Result: {result}")
 
                             except CloudFlare.exceptions.CloudFlareAPIError as e:
                                 exit('API call failed (%d): %s\nData: %s' % (e, e, record_data))
@@ -426,19 +430,20 @@ class cloudflare_update(Builder):
                                 result = {}
 
                                 if rule_to_update is not None:
-                                    r_id = rule_to_update['id']
-
-                                    logging.info(f"Will update {fwr['name']} in {domain_name}")
-                                    if (not this.dry_run):
-                                        result = this.cf.zones.firewall.rules.put(domain_id, r_id, data=rule_data) #REQUEST: Update
-                                        logging.info(f"Result: {result}")
+                                    raise Exception("Firewall rules cannot be updated at this time. They must be wiped and recreated.")
+                                    # r_id = rule_to_update['id']
+                                    #
+                                    # logging.info(f"Will update {fwr['name']} in {domain_name}")
+                                    # if (not this.dry_run):
+                                    #     result = this.cf.zones.firewall.rules.put(domain_id, r_id, data=rule_data) #REQUEST: Update
+                                    #     logging.info(f"Result: {result}")
 
                                 else:
                                     logging.info(f"No matching firewall rule found for {fwr['name']}")
 
                                     logging.info(f"Will create {fwr['name']} in {domain_name}")
                                     if (not this.dry_run):
-                                        result = this.cf.zones.firewall.rules.post(domain_id, data=rule_data) #REQUEST
+                                        result = this.cf.zones.firewall.rules.post(domain_id, data=rule_data) #REQUEST: Create
                                         logging.info(f"Result: {result}")
 
                             except CloudFlare.exceptions.CloudFlareAPIError as e:
@@ -447,7 +452,7 @@ class cloudflare_update(Builder):
 
                 logging.info(f"---- done with {domain_name} ----")
 
-            break  # testing
+            # break  # testing
 
             total_pages = raw_results['result_info']['total_pages']
             if page_number == total_pages:

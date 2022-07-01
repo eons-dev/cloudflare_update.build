@@ -20,6 +20,9 @@ Cloudflare supports entering dns record names which are not fully qualified; how
 
 To work around this issue an others, all instances of `@` are replaced by the current domain's name before the request is sent. This maintains consistency with Cloudflare's current UI while only requiring you make your domains follow the `_config.@` format. See below for an example.
 
+### No Ability to Delete DNS Records
+We just don't support deleting or wiping dns records yet.
+
 ### Cloudflare Filters are Clobbered
 Cloudflare currently only uses Filters for its Firewall. Because we're lazy and didn't implement multi-level update checks, the only way to update firewall rules is by wiping them (see below on `"wipe": ["firewall_rules"]`) and recreating them.
 
@@ -38,7 +41,7 @@ For example, `dig TXT _config.infrastructure.tech` shows we are using the follow
   "security_level": 2
 }
 ```
-The `"type"` only the key is required but the value does not matter. Each of these values can be used in your record configuration by calling `domain_config['my_key']`. See below for an example. 
+The `"type"` key is the required key but the value does not matter. Each of these values can be used in your record configuration by calling `domain_config['my_key']`. See below for an example. 
 
 ## build.json
 The easiest way to use this builder is with a build.json file in the root of your project directory (see [ebbs](https://github.com/eons-dev/bin_ebbs) for more details).
