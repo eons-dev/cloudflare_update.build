@@ -88,6 +88,7 @@ class cloudflare_update(Builder):
                 raise Exception("Invalid _config")
         return ret
 
+    #TODO: Use eons.UserFunctor.EvaluateToType
     def EvaluateSetting(this, setting, domain_name, domain_config):
         if (isinstance(setting, dict)):
             ret = {}
@@ -128,7 +129,8 @@ class cloudflare_update(Builder):
                 pass
 
             #Type checks failed, string is appropriate.
-            return evaluated_setting
+            #Make sure the domain name is properly substituted.
+            return evaluated_setting.replace('@', domain_name)
 
     def Backup(this):
         backup_file = this.CreateFile(
@@ -296,9 +298,15 @@ class cloudflare_update(Builder):
                                 if (dns['type'] in this.dns_allows_multiple_records and 'update_term' in dns):
                                     for existing in dns_records:
                                         if (dns['domain'] == existing['name'] and dns['update_term'] in existing['content']):
-                                            existing_record = existing
-                                            logging.debug(f"Will update existing {existing_record['type']} record containing: {existing_record['content']}")
-                                            break
+                                            
+                                            if (existing_record is not None): # duplicate record found
+                                                logging.debug(f"Deleting duplicate record with: {existing_record['content']}")
+                                                time.sleep(1) #Sleep just in case
+                                                result = this.cf.zones.dns_records.delete(domain_id, existing['id']) #possible additional request: Delete
+                                            else:
+                                                existing_record = existing
+                                                logging.debug(f"Will update existing {existing_record['type']} record containing: {existing_record['content']}")
+
                                     if existing_record is None:
                                         logging.debug(f"Could not find existing record matching {dns['domain']} and update_term {dns['update_term']}")
                                 else:
@@ -322,7 +330,7 @@ class cloudflare_update(Builder):
                                 'type': dns['type'],
                                 'content': dns['content']
                             }
-                            if (dns['type'] not in this.dns_allows_multiple_records):
+                            if ((dns['type'] not in this.dns_allows_multiple_records) and (dns['content'].endswith(domain_name))):
                                 record_data['proxied'] = True
 
                             try:
