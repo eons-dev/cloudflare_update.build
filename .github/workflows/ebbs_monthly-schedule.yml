@@ -1,11 +1,11 @@
-name: ebbs push event
+name: ebbs schedule monthly
 
 on:
-  push:
-    branches: [ main ]
+  schedule:
+    - cron: "0 2 1 * *"
 
 jobs:
-  deploy:
+  schedule:
 
     runs-on: ubuntu-latest
 
@@ -25,4 +25,4 @@ jobs:
         repo_password: ${{ secrets.INFRASTRUCTURE_PASSWORD }}
       run: |
         cd build
-        ebbs -v . --config "github.json" --event "push"
+        ebbs -vvv -e "github" -e "schedule" -e "monthly"

@@ -1,8 +1,8 @@
-name: ebbs release event
+name: ebbs event pull request
 
 on:
-  release:
-    types: [created]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   deploy:
@@ -21,12 +21,8 @@ jobs:
         pip install eot
     - name: Build
       env:
-        pypi_username: ${{ secrets.PYPI_USERNAME }}
-        pypi_password: ${{ secrets.PYPI_PASSWORD }}
-        docker_username: ${{ secrets.DOCKER_USERNAME }}
-        docker_password: ${{ secrets.DOCKER_PASSWORD }}
         repo_username: ${{ secrets.INFRASTRUCTURE_USERNAME }}
         repo_password: ${{ secrets.INFRASTRUCTURE_PASSWORD }}
       run: |
         cd build
-        ebbs -v . --config "github.json" --version "${{ github.event.release.tag_name }}" --event "release"
+        ebbs -vvv -e "github" -e "pull_request"

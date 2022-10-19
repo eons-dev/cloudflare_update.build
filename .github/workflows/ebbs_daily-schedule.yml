@@ -1,11 +1,11 @@
-name: ebbs pull request event
+name: ebbs schedule daily
 
 on:
-  pull_request:
-    branches: [ main ]
+  schedule:
+    - cron: "0 0 * * *"
 
 jobs:
-  deploy:
+  schedule:
 
     runs-on: ubuntu-latest
 
@@ -25,4 +25,4 @@ jobs:
         repo_password: ${{ secrets.INFRASTRUCTURE_PASSWORD }}
       run: |
         cd build
-        ebbs -v . --config "github.json" --event "pull_request"
+        ebbs -vvv -e "github" -e "schedule" -e "daily"
