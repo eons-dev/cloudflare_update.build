@@ -41,6 +41,7 @@ class cloudflare_update(Builder):
         this.optionalKWArgs['backup'] = True
         this.optionalKWArgs['backup_path'] = "bak"
         this.optionalKWArgs['dry_run'] = True
+        this.optionalKWArgs['testing'] = False
         this.optionalKWArgs['errors_are_fatal'] = False
 
         this.dns_allows_multiple_records = ['TXT', 'MX']
@@ -88,6 +89,9 @@ class cloudflare_update(Builder):
                 raise Exception("Invalid _config")
         return ret
 
+    def Set(this, varName, value, evaluateExpressions=False):
+        super().Set(varName, value, evaluateExpressions)
+
     #TODO: Use eons.UserFunctor.EvaluateToType
     def EvaluateSetting(this, setting, domain_name, domain_config):
         if (isinstance(setting, dict)):
@@ -130,7 +134,7 @@ class cloudflare_update(Builder):
 
             #Type checks failed, string is appropriate.
             #Make sure the domain name is properly substituted.
-            return evaluated_setting.replace('@', domain_name)
+            return evaluated_setting.replace('@', domain_name).replace(f'\\{domain_name}', '@')
 
     def Backup(this):
         backup_file = this.CreateFile(
@@ -139,8 +143,12 @@ class cloudflare_update(Builder):
         page_number = 0
         while True:
             page_number += 1
-            # raw_results = this.cf.zones.get(params={'per_page': 2, 'page': page_number}) #testing
-            raw_results = this.cf.zones.get(params={'per_page': 20, 'page': page_number})
+            
+            if (this.testing):
+                raw_results = this.cf.zones.get(params={'per_page': 2, 'page': page_number})
+            else:
+                raw_results = this.cf.zones.get(params={'per_page': 20, 'page': page_number})
+            
             domains = raw_results['result']
 
             for domain in domains:
@@ -192,10 +200,11 @@ class cloudflare_update(Builder):
 
                 logging.info(f"---- COMPLETED {domain_name} ----")
 
-                # break #testing
+                if (this.testing):
+                    break
 
             total_pages = raw_results['result_info']['total_pages']
-            if page_number == total_pages:
+            if (page_number == total_pages):
                 break
 
         backup_file.close()
@@ -204,8 +213,12 @@ class cloudflare_update(Builder):
         page_number = 0
         while True:
             page_number += 1
-            # raw_results = this.cf.zones.get(params={'per_page': 2, 'page': page_number}) #testing
-            raw_results = this.cf.zones.get(params={'per_page': 20, 'page': page_number})
+            
+            if (this.testing):
+                raw_results = this.cf.zones.get(params={'per_page': 2, 'page': page_number})
+            else:
+                raw_results = this.cf.zones.get(params={'per_page': 20, 'page': page_number})
+            
             domains = raw_results['result']
 
             domains_with_errors = []
@@ -268,10 +281,12 @@ class cloudflare_update(Builder):
                                 # rate limiting. keep us under 4 / sec.
                                 if (not i % 3):
                                     time.sleep(1)
-                    # break #testing
+                    
+                    if (this.testing):
+                        break
 
                     ############ BEGIN DNS SETTINGS ############
-                    if 'dns' in setting:
+                    if ('dns' in setting):
                         time.sleep(1)  # rate limiting
 
                         for i, dns in enumerate(setting['dns']):
@@ -294,7 +309,7 @@ class cloudflare_update(Builder):
 
                             #Check for the proper record to update.
                             #This logic is complex in order to handle cases where you want to replace an A record with a CNAME or some other record type transmutation.
-                            if len(dns_records):
+                            if (len(dns_records)):
                                 if (dns['type'] in this.dns_allows_multiple_records and 'update_term' in dns):
                                     for existing in dns_records:
                                         if (dns['domain'] == existing['name'] and dns['update_term'] in existing['content']):
@@ -307,7 +322,7 @@ class cloudflare_update(Builder):
                                                 existing_record = existing
                                                 logging.debug(f"Will update existing {existing_record['type']} record containing: {existing_record['content']}")
 
-                                    if existing_record is None:
+                                    if (existing_record is None):
                                         logging.debug(f"Could not find existing record matching {dns['domain']} and update_term {dns['update_term']}")
                                 else:
                                     single_instance_dns_records = [d for d in dns_records if d['type'] not in this.dns_allows_multiple_records]
@@ -320,7 +335,7 @@ class cloudflare_update(Builder):
                                                 existing_record = existing
                                                 logging.debug(f"Multiple matches found for {dns['domain']}. Using existing {dns['type']} record.")
                                                 break
-                                    if existing_record is None:
+                                    if (existing_record is None):
                                         logging.warn(f"Could not find appropriate existing record for {dns['domain']}. Candidates were: {single_instance_dns_records}")
                             else:
                                 logging.debug(f"No matching records found on {domain_name} with params: {params}")
@@ -336,7 +351,7 @@ class cloudflare_update(Builder):
                             try:
                                 result = {}
 
-                                if existing_record is not None:
+                                if (existing_record is not None):
                                     logging.info(f"Will delete existing record: {existing_record}")
                                     if (not this.dry_run):
                                         result = this.cf.zones.dns_records.delete(domain_id, existing_record['id']) #POSSIBLE REQUEST: Delete
@@ -356,7 +371,7 @@ class cloudflare_update(Builder):
                     ############ END DNS SETTINGS ############
 
                     ############ BEGIN PAGE RULE SETTINGS ############
-                    if 'page_rules' in setting:
+                    if ('page_rules' in setting):
 
                         time.sleep(1)  # rate limiting
 
@@ -376,7 +391,7 @@ class cloudflare_update(Builder):
 
                             # check for the proper rule to update.
                             rule_to_update = None
-                            if len(page_rules):
+                            if (len(page_rules)):
                                 for existing in page_rules:
                                     if pgr['url'] in [target['constraint']['value'] for target in existing['targets']]:
                                         rule_to_update = existing
@@ -388,7 +403,7 @@ class cloudflare_update(Builder):
                             try:
                                 result = {}
 
-                                if rule_to_update is not None:
+                                if (rule_to_update is not None):
                                     r_id = rule_to_update['id']
 
                                     logging.info(f"Will update {pgr['url']} in {domain_name}")
@@ -415,7 +430,7 @@ class cloudflare_update(Builder):
                     ############ BEGIN FIREWALL RULE SETTINGS ############
                     #TODO: Filters require a separate api, so updating does not work. We have to wipe + create atm.
 
-                    if 'firewall_rules' in setting:
+                    if ('firewall_rules' in setting):
                         time.sleep(1)  # rate limiting
 
                         #Unlike DNS, this result does not depend on params and can be cached.
@@ -433,7 +448,7 @@ class cloudflare_update(Builder):
 
                             # check for the proper rule to update.
                             rule_to_update = None
-                            if len(firewall_rules):
+                            if (len(firewall_rules)):
                                 for existing in firewall_rules:
                                     if fwr['name'] == existing['filter']['description']:
                                         rule_to_update = existing
@@ -454,7 +469,7 @@ class cloudflare_update(Builder):
                             try:
                                 result = {}
 
-                                if rule_to_update is not None:
+                                if (rule_to_update is not None):
                                     raise Exception("Firewall rules cannot be updated at this time. They must be wiped and recreated.")
                                     # r_id = rule_to_update['id']
                                     #
@@ -481,10 +496,11 @@ class cloudflare_update(Builder):
 
                 logging.info(f"---- done with {domain_name} ----")
 
-            # break  # testing
+            if (this.testing):
+                break
 
             total_pages = raw_results['result_info']['total_pages']
-            if page_number == total_pages:
+            if (page_number == total_pages):
                 break
 
         logging.info("Complete!")

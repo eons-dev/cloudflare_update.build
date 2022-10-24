@@ -20,7 +20,13 @@ Until recently Cloudflare had official mechanism for exporting nor importing dns
 #### DNS Records Must Use `{domain_name}`
 Cloudflare supports entering dns record names which are not fully qualified; however, it does not support getting records with a partial dns entry (creating `_config` will yield `_config.example.com` but getting `_config` from the `example.com` records does not produce `_config.example.com`).
 
-To work around this issue an others, all instances of `{domain_name}` are replaced by the current domain's name before the request is sent. This maintains consistency with Cloudflare's current UI while only requiring you make your domains follow the `_config.{domain_name}` format. See below for an example.
+To work around this issue an others, all instances of `{domain_name}` and `@` are replaced by the current domain's name before the request is sent. This maintains consistency with Cloudflare's current UI while only requiring you make your domains follow the `_config.{domain_name}` format. See below for an example.
+
+When creating your DNS records, you can type "www.{domain_name}" or, simply "www.@"
+
+**ALL @ SYMBOLS MUST BE ESCAPED WITH \\**
+
+If you want to type an email, type "user\\@domain.ext"
 
 #### No Ability to Delete DNS Records
 We just don't support deleting or wiping dns records yet.
