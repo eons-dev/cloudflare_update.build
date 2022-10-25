@@ -1,0 +1,28 @@
+{
+  "next": [
+    {
+      "run_when_any" : [
+        "push",
+        "pull_request",
+        "release"
+      ],
+      "build" : "proxy",
+      "build_in" : "local",
+      "config" : {
+        "clear_build_path" : false,
+        "proxy" : "../../config/local.json"
+      }
+    },
+    {
+      "run_when_any" : [
+        "schedule"
+      ],
+      "build" : "proxy",
+      "build_in" : "schedule",
+      "config" : {
+        "clear_build_path" : false,
+        "proxy" : "../../config/schedule.json"
+      }
+    }
+  ]
+}

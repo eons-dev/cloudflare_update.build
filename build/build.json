@@ -1,0 +1,30 @@
+{
+  "name" : "cloudflare_update",
+  "type" : "build",
+  "clear_build_path" : true,
+  "build_in" : "tmp",
+  "next": [
+    {
+      "run_when_none" : [
+        "github"
+      ],
+      "build" : "proxy",
+      "build_in" : "local",
+      "config" : {
+        "clear_build_path" : false,
+        "proxy" : "../config/local.json"
+      }
+    },
+    {
+      "run_when_any" : [
+        "github"
+      ],
+      "build" : "proxy",
+      "build_in" : "github",
+      "config" : {
+        "clear_build_path" : false,
+        "proxy" : "../config/github.json"
+      }
+    }
+  ]
+}
