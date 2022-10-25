@@ -70,7 +70,7 @@ Your build file should look something like:
         {
             "build": "cloudflare_update",
             "build_in": "build",
-            "run_when":
+            "run_when_any":
             [
                 "release"
             ],
@@ -100,7 +100,7 @@ Your build file should look something like:
                             {
                                 "type": "TXT",
                                 "domain": "_dmarc.{domain_name}",
-                                "content": "v=DMARC1; p=reject; pct=100; fo=1; adkim=s; aspf=s; rua=mailto:dmarc_agg@vali.email",
+                                "content": "v=DMARC1; p=reject; pct=100; fo=1; adkim=s; aspf=s; rua=mailto:dmarc_agg\\@vali.email",
                                 "update_term": "v=DMARC1"
                             },
                             {
@@ -262,6 +262,6 @@ If you have a lot of domains and don't want to debug each one or want to gloss o
 Doing this is generally not recommended (obviously).
 
 ### Other Notes on EBBS
-The `run_when:["release"]` code is intended for github releases. If you would like to keep this functionality, it is recommended to use the [ebbs github workflows](https://github.com/eons-dev/part_ebbs-workflows), which will provide `--event release` on release creation. NOTE: if you use the ebbs workflows, you should edit them to provide `cf_email` and `cf_token` as environment variables (usually from github secrets).
+The `run_when_any:["release"]` code is intended for github releases. If you would like to keep this functionality, it is recommended to use the [ebbs github workflows](https://github.com/eons-dev/part_ebbs-workflows), which will provide `--event release` on release creation. NOTE: if you use the ebbs workflows, you should edit them to provide `cf_email` and `cf_token` as environment variables (usually from github secrets).
 
 To take advantage of the `publish` mechanic for uploading the latest backup, you must have a valid infrastructure.tech account or use your own repository. Currently, the infrastructure.tech frontend is under development, so if you would like an account or even help getting started, email support@infrastructure.tech.
