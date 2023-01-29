@@ -13,7 +13,7 @@ Unfortunately, Cloudflare naming, features, and conventions are not entirely con
 There are a few major limitations of the current implementation.
 
 ### No Way to Roll Back
-Until recently Cloudflare had official mechanism for exporting nor importing dns records. Afaik, there is still no supported means of exporting and importing all domain settings (besides paying lots of money for an enterprise plan and having them do that for you). Because of this, the backup this script creates will require manual restoration if something goes wrong. All the information you need should be in the file, and hopefully soon this script will be able to read that file and manage rollbacks itself. However, that glorious day is yet to come.
+Until recently Cloudflare had no official mechanism for exporting nor importing dns records. Afaik, there is still no supported means of exporting and importing all domain settings (besides paying lots of money for an enterprise plan and having them do that for you). Because of this, the backup this script creates will require manual restoration if something goes wrong. All the information you need should be in the file, and hopefully soon this script will be able to read that file and manage rollbacks itself. However, that glorious day is yet to come.
 
 ### DNS
 
