@@ -5,10 +5,11 @@ import re
 import json
 import time
 import CloudFlare
+import eons
 from eot import EOT
 from ebbs import Builder
 from ebbs import OtherBuildError
-
+from pathlib import Path
 
 ###################################################################
 #                    GENERAL INFORMATION
@@ -44,10 +45,13 @@ class cloudflare_update(Builder):
         this.optionalKWArgs['testing'] = False
         this.optionalKWArgs['errors_are_fatal'] = False
 
-        this.dns_allows_multiple_records = ['TXT', 'MX']
-
     # Required Builder method. See that class for details.
     def Build(this):
+        eons.SelfRegistering.RegisterAllClassesInDirectory(Path(this.executor.repo.store).joinpath("applicator").resolve())
+        this.methods["DNSApplicator"] = eons.SelfRegistering("DNSApplicator")
+        this.methods["PageRuleApplicator"] = eons.SelfRegistering("PageRuleApplicator")
+        this.methods["FirewallApplicator"] = eons.SelfRegistering("FirewallApplicator")
+        this.PopulateMethods()
         this.Validate()
         this.Authenticate()
         if (this.backup):
@@ -63,7 +67,7 @@ class cloudflare_update(Builder):
     # Create this.cf.
     def Authenticate(this):
         args = {
-            'email': this.cf_email,
+            #'email': this.cf_email,
             'token': this.cf_token,
             'raw': True
         }
@@ -208,6 +212,7 @@ class cloudflare_update(Builder):
                 break
 
         backup_file.close()
+        
 
     def Update(this):
         page_number = 0
@@ -282,217 +287,12 @@ class cloudflare_update(Builder):
                                 if (not i % 3):
                                     time.sleep(1)
                     
+                    this.DNSApplicator(setting, domain, domain_id, domain_name, domains_with_errors, executor=this)
+                    this.PageRuleApplicator(setting, domain, domain_id, domain_name, domains_with_errors, executor=this)
+                    this.FirewallApplicator(setting, domain, domain_id, domain_name, domains_with_errors, executor=this)
+
                     if (this.testing):
                         break
-
-                    ############ BEGIN DNS SETTINGS ############
-                    if ('dns' in setting):
-                        time.sleep(1)  # rate limiting
-
-                        for i, dns in enumerate(setting['dns']):
-
-                            # rate limiting. keep us under 4 / sec.
-                            # if (not i % 2): #at limit (3 possible requests per iteration).
-                            time.sleep(1)
-
-                            logging.debug(f"Applying DNS Setting: {dns}")
-
-                            if (('type' not in dns) or ('domain' not in dns) or ('content' not in dns)):
-                                logging.error(f"Invalid dns entry: {dns}")
-                                continue
-
-                            params = {'name': dns['domain'], 'match': 'all'}
-                            if (dns['type'] in this.dns_allows_multiple_records):
-                                params['type'] = dns['type']
-                            dns_records = this.cf.zones.dns_records.get(domain_id, params=params)['result']  # REQUEST
-                            existing_record = None
-
-                            #Check for the proper record to update.
-                            #This logic is complex in order to handle cases where you want to replace an A record with a CNAME or some other record type transmutation.
-                            if (len(dns_records)):
-                                if (dns['type'] in this.dns_allows_multiple_records and 'update_term' in dns):
-                                    for existing in dns_records:
-                                        if (dns['domain'] == existing['name'] and dns['update_term'] in existing['content']):
-                                            
-                                            if (existing_record is not None): # duplicate record found
-                                                logging.debug(f"Deleting duplicate record with: {existing_record['content']}")
-                                                time.sleep(1) #Sleep just in case
-                                                result = this.cf.zones.dns_records.delete(domain_id, existing['id']) #possible additional request: Delete
-                                            else:
-                                                existing_record = existing
-                                                logging.debug(f"Will update existing {existing_record['type']} record containing: {existing_record['content']}")
-
-                                    if (existing_record is None):
-                                        logging.debug(f"Could not find existing record matching {dns['domain']} and update_term {dns['update_term']}")
-                                else:
-                                    single_instance_dns_records = [d for d in dns_records if d['type'] not in this.dns_allows_multiple_records]
-                                    if (len(single_instance_dns_records) == 1):
-                                        existing_record = dns_records[0]
-                                        logging.debug(f"Will update existing {existing_record['type']} record")
-                                    else:
-                                        for existing in single_instance_dns_records:
-                                            if (dns['domain'] == existing['name'] and dns['type'] == existing['type']):
-                                                existing_record = existing
-                                                logging.debug(f"Multiple matches found for {dns['domain']}. Using existing {dns['type']} record.")
-                                                break
-                                    if (existing_record is None):
-                                        logging.warn(f"Could not find appropriate existing record for {dns['domain']}. Candidates were: {single_instance_dns_records}")
-                            else:
-                                logging.debug(f"No matching records found on {domain_name} with params: {params}")
-
-                            record_data = {
-                                'name': dns['domain'],
-                                'type': dns['type'],
-                                'content': dns['content']
-                            }
-                            if ((dns['type'] not in this.dns_allows_multiple_records) and (dns['content'].endswith(domain_name))):
-                                record_data['proxied'] = True
-
-                            try:
-                                result = {}
-
-                                if (existing_record is not None):
-                                    logging.info(f"Will delete existing record: {existing_record}")
-                                    if (not this.dry_run):
-                                        result = this.cf.zones.dns_records.delete(domain_id, existing_record['id']) #POSSIBLE REQUEST: Delete
-                                        logging.info(f"Result: {result}")
-
-                                logging.info(f"Will create {dns['type']} record {dns['domain']} in {domain_name}")
-                                if (not this.dry_run):
-                                    result = this.cf.zones.dns_records.post(domain_id, data=record_data)  # REQUEST: Create
-                                    logging.info(f"Result: {result}")
-
-                            except CloudFlare.exceptions.CloudFlareAPIError as e:
-                                logging.error('API call failed (%d): %s\nData: %s' % (e, e, record_data))
-                                if (this.errors_are_fatal):
-                                    exit()
-                                else:
-                                    domains_with_errors.append(domain)
-                    ############ END DNS SETTINGS ############
-
-                    ############ BEGIN PAGE RULE SETTINGS ############
-                    if ('page_rules' in setting):
-
-                        time.sleep(1)  # rate limiting
-
-                        #Unlike DNS, this result does not depend on params and can be cached.
-                        params = {'match': 'all'}
-                        page_rules = this.cf.zones.pagerules.get(domain_id, params=params)['result']  # REQUEST
-
-                        for i, pgr in enumerate(setting['page_rules']):
-
-                            # rate limiting. keep us under 4 / sec.
-                            if (not i % 3):
-                                time.sleep(1)
-
-                            logging.debug(f"Applying Page Rule Setting: {pgr}")
-
-                            # TODO: input checking.
-
-                            # check for the proper rule to update.
-                            rule_to_update = None
-                            if (len(page_rules)):
-                                for existing in page_rules:
-                                    if pgr['url'] in [target['constraint']['value'] for target in existing['targets']]:
-                                        rule_to_update = existing
-                                        break
-
-                            targets = [{"target": "url", "constraint": {"operator": "matches", "value": pgr['url']}}]
-                            rule_data = {"status": "active", "priority": 1, "actions": pgr['actions'], "targets": targets}
-
-                            try:
-                                result = {}
-
-                                if (rule_to_update is not None):
-                                    r_id = rule_to_update['id']
-
-                                    logging.info(f"Will update {pgr['url']} in {domain_name}")
-                                    if (not this.dry_run):
-                                        result = this.cf.zones.pagerules.put(domain_id, r_id, data=rule_data) # REQUEST: Update
-                                        logging.info(f"Result: {result}")
-
-                                else:
-                                    logging.info(f"No matching page rule found for {pgr['url']}")
-
-                                    logging.info(f"Will create {pgr['url']} in {domain_name}")
-                                    if (not this.dry_run):
-                                        result = this.cf.zones.pagerules.post(domain_id, data=rule_data) # REQUEST: Create
-                                        logging.info(f"Result: {result}")
-
-                            except CloudFlare.exceptions.CloudFlareAPIError as e:
-                                logging.error('API call failed (%d): %s\nData: %s' % (e, e, rule_data))
-                                if (this.errors_are_fatal):
-                                    exit()
-                                else:
-                                    domains_with_errors.append(domain)
-                    ############ END PAGE RULE SETTINGS ############
-
-                    ############ BEGIN FIREWALL RULE SETTINGS ############
-                    #TODO: Filters require a separate api, so updating does not work. We have to wipe + create atm.
-
-                    if ('firewall_rules' in setting):
-                        time.sleep(1)  # rate limiting
-
-                        #Unlike DNS, this result does not depend on params and can be cached.
-                        firewall_rules = this.cf.zones.firewall.rules.get(domain_id)['result']  # REQUEST
-
-                        for i, fwr in enumerate(setting['firewall_rules']):
-
-                            # rate limiting. keep us under 4 / sec.
-                            if (not i % 3):
-                                time.sleep(1)
-
-                            logging.debug(f"Applying Firewall Rule Setting: {fwr}")
-
-                            # TODO: input checking.
-
-                            # check for the proper rule to update.
-                            rule_to_update = None
-                            if (len(firewall_rules)):
-                                for existing in firewall_rules:
-                                    if fwr['name'] == existing['filter']['description']:
-                                        rule_to_update = existing
-                                        break
-
-                            rule_data = [{
-                                "action": fwr['action'],
-                                "priority": fwr['priority'],
-                                "paused": False,
-                                "description": fwr['name'],
-                                "filter": {
-                                    "expression": fwr['expression'].replace("'", '"'),
-                                    "paused": False,
-                                    "description": fwr['name'],
-                                }
-                            }]
-
-                            try:
-                                result = {}
-
-                                if (rule_to_update is not None):
-                                    raise Exception("Firewall rules cannot be updated at this time. They must be wiped and recreated.")
-                                    # r_id = rule_to_update['id']
-                                    #
-                                    # logging.info(f"Will update {fwr['name']} in {domain_name}")
-                                    # if (not this.dry_run):
-                                    #     result = this.cf.zones.firewall.rules.put(domain_id, r_id, data=rule_data) #REQUEST: Update
-                                    #     logging.info(f"Result: {result}")
-
-                                else:
-                                    logging.info(f"No matching firewall rule found for {fwr['name']}")
-
-                                    logging.info(f"Will create {fwr['name']} in {domain_name}")
-                                    if (not this.dry_run):
-                                        result = this.cf.zones.firewall.rules.post(domain_id, data=rule_data) #REQUEST: Create
-                                        logging.info(f"Result: {result}")
-
-                            except CloudFlare.exceptions.CloudFlareAPIError as e:
-                                logging.error('API call failed (%d): %s\nData: %s' % (e, e, rule_data))
-                                if (this.errors_are_fatal):
-                                    exit()
-                                else:
-                                    domains_with_errors.append(domain)
-                        ############ END FIREWALL RULE SETTINGS ############
 
                 logging.info(f"---- done with {domain_name} ----")
 
