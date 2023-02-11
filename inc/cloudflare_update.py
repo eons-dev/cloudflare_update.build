@@ -137,8 +137,12 @@ class cloudflare_update(Builder):
                 pass
 
             #Type checks failed, string is appropriate.
+            return evaluated_setting
+
+            #We could allow @ to be "domain_name", as it is in cloudflare. However, this makes writing and talking about emails rather difficult.
+            #
             #Make sure the domain name is properly substituted.
-            return evaluated_setting.replace('@', domain_name).replace(f'\\{domain_name}', '@')
+            # return evaluated_setting.replace('@', domain_name).replace(f'\\{domain_name}', '@')
 
     def Backup(this):
         backup_file = this.CreateFile(
