@@ -4,3 +4,6 @@ build/**/
 
 #intellij
 /.idea/
+
+#pycache
+__pycache__
