@@ -22,4 +22,12 @@ class CacheRuleApplicator(Applicator):
 			if 'expression' not in rule:
 				continue
 			rule['expression'] = rule['expression'].replace("'",'"')
+		
+		currentRules = this.cf.zones.rulesets.phases.http_request_cache_settings.entrypoint.get(this.domain_id)
+
+		try:
+			[cache_rules['rules'].append(exist) for exist in currentRules['result']['rules'] if exist['description'] not in [rule['description'] for rule in cache_rules['rules']]]
+		except Exception as e:
+			logging.warning(str(e))
+
 		this.cf.zones.rulesets.phases.http_request_cache_settings.entrypoint.put(this.domain_id, data=cache_rules)
