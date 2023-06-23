@@ -46,13 +46,25 @@ class cloudflare_update(Builder):
 		this.optionalKWArgs['errors_are_fatal'] = False
 
 
+	@eons.method(impl="External")
+	def CacheRuleApplicator(this):
+		pass
+
+	@eons.method(impl="External")
+	def DNSApplicator(this):
+		pass
+
+	@eons.method(impl="External")
+	def FirewallApplicator(this):
+		pass
+
+	@eons.method(impl="External")
+	def PageRuleApplicator(this):
+		pass
+
     # Required Builder method. See that class for details.
 	def Build(this):
-		eons.SelfRegistering.RegisterAllClassesInDirectory(Path(this.executor.repo.store).joinpath("applicator").resolve())
-		this.methods["DNSApplicator"] = eons.SelfRegistering("DNSApplicator")
-		this.methods["PageRuleApplicator"] = eons.SelfRegistering("PageRuleApplicator")
-		this.methods["FirewallApplicator"] = eons.SelfRegistering("FirewallApplicator")
-		this.methods["CacheRuleApplicator"] = eons.SelfRegistering("CacheRuleApplicator")
+
 		this.PopulateMethods()
 		this.Validate()
 		this.Authenticate()
