@@ -19,6 +19,7 @@ jobs:
       run: |
         pip install ebbs
         pip install eot
+        pip install CloudFlare
     - name: Build
       env:
         repo_username: ${{ secrets.INFRASTRUCTURE_USERNAME }}
