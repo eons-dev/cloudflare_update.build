@@ -12,7 +12,7 @@ class FirewallApplicator(Applicator):
 			time.sleep(1)  # rate limiting
 
 			#Unlike DNS, this result does not depend on params and can be cached.
-			firewall_rules = this.cf.firewall.rules.list(zone_id=this.domain_id)  # REQUEST
+			firewall_rules = this.cf.firewall.rules.list(this.domain_id)  # REQUEST
 
 			for i, fwr in enumerate(this.setting['firewall_rules']):
 
