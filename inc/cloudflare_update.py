@@ -92,7 +92,11 @@ class cloudflare_update(Builder):
 			dns_records = this.cf.dns.records.list(zone_id=domain_id, type='TXT', name=f'_config.{domain_name}')
 			logging.debug(f"Config records: {dns_records}")
 
-			config_contents = dns_records[0].content
+			config_contents = None
+			for r in dns_records:
+				config_contents = r.content
+				break
+
 			ret = json.loads(config_contents)
 			if ('type' not in ret):
 				raise Exception(f"Please specify the 'type' of {domain_name} in the _config record.")

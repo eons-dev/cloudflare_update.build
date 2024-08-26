@@ -51,7 +51,10 @@ class DNSApplicator(Applicator):
 				else:
 					single_instance_dns_records = [d for d in dns_records if d['type'] not in this.dns_allows_multiple_records]
 					if (len(single_instance_dns_records) == 1):
-						existing_record = dns_records[0]
+						existing_record = None
+						for r in dns_records:
+							existing_record = r
+							break
 						logging.debug(f"Will update existing {existing_record.type} record")
 					else:
 						for existing in single_instance_dns_records:
