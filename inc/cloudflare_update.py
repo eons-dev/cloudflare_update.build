@@ -285,10 +285,10 @@ class cloudflare_update(Builder):
 							if (not i % 3):
 								time.sleep(1)
 
-				this.DNSApplicator(setting, domain, domain_id, domain_name, domains_with_errors, precursor = this)
-				this.PageRuleApplicator(setting, domain, domain_id, domain_name, domains_with_errors, precursor = this)
-				this.FirewallApplicator(setting, domain, domain_id, domain_name, domains_with_errors, precursor = this)
-				this.CacheRuleApplicator(setting, domain, domain_id, domain_name, domains_with_errors, precursor = this)
+				this.DNSApplicator(setting, zone, domain_id, domain_name, domains_with_errors, precursor = this)
+				this.PageRuleApplicator(setting, zone, domain_id, domain_name, domains_with_errors, precursor = this)
+				this.FirewallApplicator(setting, zone, domain_id, domain_name, domains_with_errors, precursor = this)
+				this.CacheRuleApplicator(setting, zone, domain_id, domain_name, domains_with_errors, precursor = this)
 
 				if (this.testing):
 					break
