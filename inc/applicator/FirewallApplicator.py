@@ -32,7 +32,7 @@ class FirewallApplicator(Applicator):
 							rule_to_update = existing
 							break
 
-				rule_data = [{
+				rule_data = {
 					"action": fwr['action'],
 					"priority": fwr['priority'],
 					"paused": False,
@@ -42,7 +42,7 @@ class FirewallApplicator(Applicator):
 						"paused": False,
 						"description": fwr['name'],
 					}
-				}]
+				}
 
 				try:
 					result = {}
