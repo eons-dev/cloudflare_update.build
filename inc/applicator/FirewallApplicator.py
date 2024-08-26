@@ -61,7 +61,7 @@ class FirewallApplicator(Applicator):
 
 						logging.info(f"Will create {fwr['name']} in {this.domain_name}")
 						if (not this.dry_run):
-							result = this.cf.firewall.rules.post(this.domain_id, data=rule_data) #REQUEST: Create
+							result = this.cf.firewall.rules.create(this.domain_id, **rule_data) #REQUEST: Create
 							logging.info(f"Result: {result}")
 
 				except Exception as e:

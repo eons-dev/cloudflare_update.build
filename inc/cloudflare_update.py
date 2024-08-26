@@ -265,21 +265,21 @@ class cloudflare_update(Builder):
 							if (not i % 3):
 								time.sleep(1)  # rate limiting. keep us under 4 / sec.
 					elif (wipe == 'firewall_rules'):
-						firewall_rules = this.cf.firewall.rules.list(zone_id=domain_id)
+						firewall_rules = this.cf.firewall.rules.list(domain_id)
 						for i, fwr in enumerate(firewall_rules):
 							logging.debug(f"Will delete firewall rule {fwr}")
 							if (not this.dry_run):
-								this.cf.firewall.rules.delete(fwr.id, zone_id=domain_id)
+								this.cf.firewall.rules.delete(fwr.id, zone_identifier=domain_id)
 
 							# rate limiting. keep us under 4 / sec.
 							if (not i % 3):
 								time.sleep(1)
 
-						filters = this.cf.filters.list(zone_id=domain_id)
+						filters = this.cf.filters.list(domain_id)
 						for i, flt in enumerate(filters):
 							logging.debug(f"Will delete filter {flt}")
 							if (not this.dry_run):
-								this.cf.filters.delete(flt.id, zone_id=domain_id)
+								this.cf.filters.delete(flt.id, zone_identifier=domain_id)
 
 							# rate limiting. keep us under 4 / sec.
 							if (not i % 3):
