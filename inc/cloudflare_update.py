@@ -261,7 +261,7 @@ class cloudflare_update(Builder):
 						for i, pgr in enumerate(page_rules):
 							logging.debug(f"Will delete page rule {pgr}")
 							if (not this.dry_run):
-								this.cf.pagerules.delete(pgr.id, zone_identifier=domain_id)
+								this.cf.pagerules.delete(pgr.id, zone_id=domain_id)
 							if (not i % 3):
 								time.sleep(1)  # rate limiting. keep us under 4 / sec.
 					elif (wipe == 'firewall_rules'):
@@ -269,7 +269,7 @@ class cloudflare_update(Builder):
 						for i, fwr in enumerate(firewall_rules):
 							logging.debug(f"Will delete firewall rule {fwr}")
 							if (not this.dry_run):
-								this.cf.firewall.rules.delete(fwr.id, zone_identifier=domain_id)
+								this.cf.firewall.rules.delete(fwr.id, zone_id=domain_id)
 
 							# rate limiting. keep us under 4 / sec.
 							if (not i % 3):
@@ -279,7 +279,7 @@ class cloudflare_update(Builder):
 						for i, flt in enumerate(filters):
 							logging.debug(f"Will delete filter {flt}")
 							if (not this.dry_run):
-								this.cf.filters.delete(flt.id, zone_identifier=domain_id)
+								this.cf.filters.delete(flt.id, zone_id=domain_id)
 
 							# rate limiting. keep us under 4 / sec.
 							if (not i % 3):
