@@ -89,10 +89,10 @@ class cloudflare_update(Builder):
 	def GetDomainConfig(this, domain_name, domain_id):
 		ret = {}
 		try:
-			dns_records = this.cf.zones.dns_records.get(domain_id, type='TXT', name=f'_config.{domain_name}')['result']
+			dns_records = this.cf.dns.records.list(domain_id, type='TXT', name=f'_config.{domain_name}')
 			logging.debug(f"Config records: {dns_records}")
 
-			config_contents = dns_records[0]['content']
+			config_contents = dns_records[0].content
 			ret = json.loads(config_contents)
 			if ('type' not in ret):
 				raise Exception(f"Please specify the 'type' of {domain_name} in the _config record.")
@@ -174,38 +174,38 @@ class cloudflare_update(Builder):
 
 			# DNS Records
 			try:
-				dns_records = this.cf.zones.dns_records.get(domain_id)['result']  # REQUEST
+				dns_records = this.cf.dns.records.list(domain_id)  # REQUEST
 
 				backup_file.write(f"--- DNS RECORDS FOR {domain_name} ---\n")
 				for r in dns_records:
 					logging.info(f"Got record: {r}")
 					backup_file.write(f"{domain_name} ({domain_id}): {r}\n")
 
-			except CloudFlare.exceptions.CloudFlareAPIError as e:
+			except Exception as e:
 				logging.error('/zones/dns_records.get %d %s - api call failed' % (e, e))
 
 			# Page Rules
 			try:
-				page_rules = this.cf.zones.pagerules.get(domain_id)['result']  # REQUEST
+				page_rules = this.cf.pagerules.list(domain_id)  # REQUEST
 
 				backup_file.write(f"--- PAGE RULES FOR {domain_name} ---\n")
 				for r in page_rules:
 					logging.info(f"Got page rule: {r}")
 					backup_file.write(f"{domain_name} ({domain_id}): {r}\n")
 
-			except CloudFlare.exceptions.CloudFlareAPIError as e:
+			except Exception as e:
 				logging.error('/zones/pagerules.get %d %s - api call failed' % (e, e))
 
 			# Firewall Rules
 			try:
-				fw_rules = this.cf.zones.firewall.rules.get(domain_id)['result']  # REQUEST
+				fw_rules = this.cf.firewall.rules.get(domain_id)  # REQUEST
 
 				backup_file.write(f"--- FIREWALL RULES FOR {domain_name} ---\n")
 				for r in fw_rules:
 					logging.info(f"Got firewall rule: {r}")
 					backup_file.write(f"{domain_name} ({domain_id}): {r}\n")
 
-			except CloudFlare.exceptions.CloudFlareAPIError as e:
+			except Exception as e:
 				logging.error('/zones/firewall/rules.get %d %s - api call failed' % (e, e))
 
 			logging.info(f"---- COMPLETED {domain_name} ----")
@@ -233,7 +233,7 @@ class cloudflare_update(Builder):
 
 			if (this.purge_cache):
 				logging.info(f"Purging cache for {domain_name}")
-				this.cf.zones.purge_cache.purge(domain_id, {'purge_everything': True}) # REQUEST
+				this.cf.cache.purge(domain_id, purge_everything=True} # REQUEST
 
 			for setting in this.config['domains']:
 				if ("match" not in setting):
@@ -253,29 +253,29 @@ class cloudflare_update(Builder):
 
 				for wipe in setting['wipe']:
 					if (wipe == 'page_rules'):
-						page_rules = this.cf.zones.pagerules.get(domain_id)['result']
+						page_rules = this.cf.pagerules.list(domain_id)
 						for i, pgr in enumerate(page_rules):
 							logging.debug(f"Will delete page rule {pgr}")
 							if (not this.dry_run):
-								this.cf.zones.pagerules.delete(domain_id, pgr['id'])
+								this.cf.pagerules.delete(pgr.id, zone_identifier=domain_id)
 							if (not i % 3):
 								time.sleep(1)  # rate limiting. keep us under 4 / sec.
 					elif (wipe == 'firewall_rules'):
-						firewall_rules = this.cf.zones.firewall.rules.get(domain_id)['result']
+						firewall_rules = this.cf.firewall.rules.list(domain_id)
 						for i, fwr in enumerate(firewall_rules):
 							logging.debug(f"Will delete firewall rule {fwr}")
 							if (not this.dry_run):
-								this.cf.zones.firewall.rules.delete(domain_id, fwr['id'])
+								this.cf.firewall.rules.delete(fwr.id, zone_identifier=domain_id)
 
 							# rate limiting. keep us under 4 / sec.
 							if (not i % 3):
 								time.sleep(1)
 
-						filters = this.cf.zones.filters.get(domain_id)['result']
+						filters = this.cf.filters.list(domain_id)
 						for i, flt in enumerate(filters):
 							logging.debug(f"Will delete filter {flt}")
 							if (not this.dry_run):
-								this.cf.zones.filters.delete(domain_id, flt['id'])
+								this.cf.filters.delete(flt.id, zone_identifier=domain_id)
 
 							# rate limiting. keep us under 4 / sec.
 							if (not i % 3):
