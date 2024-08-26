@@ -49,7 +49,7 @@ class DNSApplicator(Applicator):
 					if (existing_record is None):
 						logging.debug(f"Could not find existing record matching {dns['domain']} and update_term {dns['update_term']}")
 				else:
-					single_instance_dns_records = [d for d in dns_records if d['type'] not in this.dns_allows_multiple_records]
+					single_instance_dns_records = [d for d in dns_records if d.type not in this.dns_allows_multiple_records]
 					if (len(single_instance_dns_records) == 1):
 						existing_record = None
 						for r in dns_records:
@@ -58,7 +58,7 @@ class DNSApplicator(Applicator):
 						logging.debug(f"Will update existing {existing_record.type} record")
 					else:
 						for existing in single_instance_dns_records:
-							if (dns['domain'] == existing['name'] and dns['type'] == existing['type']):
+							if (dns['domain'] == existing.name and dns['type'] == existing.type):
 								existing_record = existing
 								logging.debug(f"Multiple matches found for {dns['domain']}. Using existing {dns['type']} record.")
 								break
