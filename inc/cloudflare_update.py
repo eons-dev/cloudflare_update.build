@@ -4,7 +4,7 @@ import shutil
 import re
 import json
 import time
-import CloudFlare
+import cloudflare
 import eons
 from eot import EOT
 from ebbs import Builder
@@ -39,6 +39,7 @@ class cloudflare_update(Builder):
 		this.requiredKWArgs.append("cf_token")  # global api key (TODO: can this work with other tokens?)
 
 		this.optionalKWArgs['only_apply_to'] = []
+		this.optionalKWArgs['purge_cache'] = False
 		this.optionalKWArgs['backup'] = True
 		this.optionalKWArgs['backup_path'] = "bak"
 		this.optionalKWArgs['dry_run'] = True
@@ -82,22 +83,13 @@ class cloudflare_update(Builder):
 
 	# Create this.cf.
 	def Authenticate(this):
-		args = {
-			#'email': this.cf_email,
-			'token': this.cf_token,
-			'raw': True
-		}
-		# if logging.DEBUG >= logging.root.level:
-		#	 args['debug'] = True
-
-		this.cf = CloudFlare.CloudFlare(**args)
+		this.cf = cloudflare.Cloudflare(api_email=this.cf_email, api_key=this.cf_token)
 
 
 	def GetDomainConfig(this, domain_name, domain_id):
 		ret = {}
 		try:
-			params = {'name': f'_config.{domain_name}', 'match': 'all', 'type': 'TXT'}
-			dns_records = this.cf.zones.dns_records.get(domain_id, params=params)['result']
+			dns_records = this.cf.zones.dns_records.get(domain_id, type='TXT', name=f'_config.{domain_name}')['result']
 			logging.debug(f"Config records: {dns_records}")
 
 			config_contents = dns_records[0]['content']
@@ -166,167 +158,138 @@ class cloudflare_update(Builder):
 
 	def Backup(this):
 		backup_file = this.CreateFile(
-			os.path.join(this.buildPath, this.backup_path, f"Cloudflare-bak_{EOT.GetStardate()}.txt"))
+			os.path.join(this.buildPath, this.backup_path, f"Cloudflare-bak_{EOT.GetStardate()}.txt")
+		)
 
-		page_number = 0
-		while True:
-			page_number += 1
+		for zone in this.cf.zones.list():
+			time.sleep(1)  # rate limiting
 			
+			domain_id = zone.id
+			domain_name = zone.name
+			logging.info(f"{domain_name} ({domain_id})")
+
+			if (len(this.only_apply_to) and domain_name not in this.only_apply_to):
+				logging.info(f"Skipping {domain_name}: not in {this.only_apply_to}")
+				continue
+
+			# DNS Records
+			try:
+				dns_records = this.cf.zones.dns_records.get(domain_id)['result']  # REQUEST
+
+				backup_file.write(f"--- DNS RECORDS FOR {domain_name} ---\n")
+				for r in dns_records:
+					logging.info(f"Got record: {r}")
+					backup_file.write(f"{domain_name} ({domain_id}): {r}\n")
+
+			except CloudFlare.exceptions.CloudFlareAPIError as e:
+				logging.error('/zones/dns_records.get %d %s - api call failed' % (e, e))
+
+			# Page Rules
+			try:
+				page_rules = this.cf.zones.pagerules.get(domain_id)['result']  # REQUEST
+
+				backup_file.write(f"--- PAGE RULES FOR {domain_name} ---\n")
+				for r in page_rules:
+					logging.info(f"Got page rule: {r}")
+					backup_file.write(f"{domain_name} ({domain_id}): {r}\n")
+
+			except CloudFlare.exceptions.CloudFlareAPIError as e:
+				logging.error('/zones/pagerules.get %d %s - api call failed' % (e, e))
+
+			# Firewall Rules
+			try:
+				fw_rules = this.cf.zones.firewall.rules.get(domain_id)['result']  # REQUEST
+
+				backup_file.write(f"--- FIREWALL RULES FOR {domain_name} ---\n")
+				for r in fw_rules:
+					logging.info(f"Got firewall rule: {r}")
+					backup_file.write(f"{domain_name} ({domain_id}): {r}\n")
+
+			except CloudFlare.exceptions.CloudFlareAPIError as e:
+				logging.error('/zones/firewall/rules.get %d %s - api call failed' % (e, e))
+
+			logging.info(f"---- COMPLETED {domain_name} ----")
+
 			if (this.testing):
-				raw_results = this.cf.zones.get(params={'per_page': 2, 'page': page_number})
-			else:
-				raw_results = this.cf.zones.get(params={'per_page': 20, 'page': page_number})
-			
-			domains = raw_results['result']
-
-			for domain in domains:
-				time.sleep(1)  # rate limiting
-
-				domain_id = domain['id']
-				domain_name = domain['name']
-				logging.info(f"{domain_name} ({domain_id})")
-
-				if (len(this.only_apply_to) and domain_name not in this.only_apply_to):
-					logging.info(f"Skipping {domain_name}: not in {this.only_apply_to}")
-					continue
-
-				# DNS Records
-				try:
-					dns_records = this.cf.zones.dns_records.get(domain_id)['result']  # REQUEST
-
-					backup_file.write(f"--- DNS RECORDS FOR {domain_name} ---\n")
-					for r in dns_records:
-						logging.info(f"Got record: {r}")
-						backup_file.write(f"{domain_name} ({domain_id}): {r}\n")
-
-				except CloudFlare.exceptions.CloudFlareAPIError as e:
-					logging.error('/zones/dns_records.get %d %s - api call failed' % (e, e))
-
-				# Page Rules
-				try:
-					page_rules = this.cf.zones.pagerules.get(domain_id)['result']  # REQUEST
-
-					backup_file.write(f"--- PAGE RULES FOR {domain_name} ---\n")
-					for r in page_rules:
-						logging.info(f"Got page rule: {r}")
-						backup_file.write(f"{domain_name} ({domain_id}): {r}\n")
-
-				except CloudFlare.exceptions.CloudFlareAPIError as e:
-					logging.error('/zones/pagerules.get %d %s - api call failed' % (e, e))
-
-				# Firewall Rules
-				try:
-					fw_rules = this.cf.zones.firewall.rules.get(domain_id)['result']  # REQUEST
-
-					backup_file.write(f"--- FIREWALL RULES FOR {domain_name} ---\n")
-					for r in fw_rules:
-						logging.info(f"Got firewall rule: {r}")
-						backup_file.write(f"{domain_name} ({domain_id}): {r}\n")
-
-				except CloudFlare.exceptions.CloudFlareAPIError as e:
-					logging.error('/zones/firewall/rules.get %d %s - api call failed' % (e, e))
-
-				logging.info(f"---- COMPLETED {domain_name} ----")
-
-				if (this.testing):
-					break
-
-			total_pages = raw_results['result_info']['total_pages']
-			if (page_number == total_pages):
 				break
 
 		backup_file.close()
 		
 
 	def Update(this):
-		page_number = 0
-		while True:
-			page_number += 1
-			
-			if (this.testing):
-				raw_results = this.cf.zones.get(params={'per_page': 2, 'page': page_number})
-			else:
-				raw_results = this.cf.zones.get(params={'per_page': 20, 'page': page_number})
-			
-			domains = raw_results['result']
+		domains_with_errors = []
 
-			domains_with_errors = []
+		for zone in this.cf.zones.list():
+			time.sleep(1)  # rate limiting
 
-			for domain in domains:
-				time.sleep(1)  # rate limiting
+			domain_id = zone.id
+			domain_name = zone.name
+			domain_config = this.GetDomainConfig(domain_name, domain_id)  # REQUEST
+			logging.info(f"{domain_name} ({domain_id}): {domain_config}")
 
-				domain_id = domain['id']
-				domain_name = domain['name']
-				domain_config = this.GetDomainConfig(domain_name, domain_id)  # REQUEST
-				logging.info(f"{domain_name} ({domain_id}): {domain_config}")
+			if (len(this.only_apply_to) and domain_name not in this.only_apply_to):
+				logging.info(f"Skipping {domain_name}: not in {this.only_apply_to}")
+				continue
 
-				if (len(this.only_apply_to) and domain_name not in this.only_apply_to):
-					logging.info(f"Skipping {domain_name}: not in {this.only_apply_to}")
+			if (this.purge_cache):
+				logging.info(f"Purging cache for {domain_name}")
+				this.cf.zones.purge_cache.purge(domain_id, {'purge_everything': True}) # REQUEST
+
+			for setting in this.config['domains']:
+				if ("match" not in setting):
+					continue
+				setting_can_be_applied = True
+				logging.debug(f"Trying to match with {setting['match']}")
+				for key, value in setting['match'].items():
+					if (key not in domain_config or domain_config[key] != value):
+						setting_can_be_applied = False
+						break
+				if (not setting_can_be_applied):
 					continue
 
-				for setting in this.config['domains']:
-					if ("match" not in setting):
-						continue
-					setting_can_be_applied = True
-					logging.debug(f"Trying to match with {setting['match']}")
-					for key, value in setting['match'].items():
-						if (key not in domain_config or domain_config[key] != value):
-							setting_can_be_applied = False
-							break
-					if (not setting_can_be_applied):
-						continue
+				# Apply dynamic configuration
+				setting = this.EvaluateSetting(setting, domain_name, domain_config)
+				logging.debug(f"Will apply {setting}")
 
-					# Apply dynamic configuration
-					setting = this.EvaluateSetting(setting, domain_name, domain_config)
-					logging.debug(f"Will apply {setting}")
+				for wipe in setting['wipe']:
+					if (wipe == 'page_rules'):
+						page_rules = this.cf.zones.pagerules.get(domain_id)['result']
+						for i, pgr in enumerate(page_rules):
+							logging.debug(f"Will delete page rule {pgr}")
+							if (not this.dry_run):
+								this.cf.zones.pagerules.delete(domain_id, pgr['id'])
+							if (not i % 3):
+								time.sleep(1)  # rate limiting. keep us under 4 / sec.
+					elif (wipe == 'firewall_rules'):
+						firewall_rules = this.cf.zones.firewall.rules.get(domain_id)['result']
+						for i, fwr in enumerate(firewall_rules):
+							logging.debug(f"Will delete firewall rule {fwr}")
+							if (not this.dry_run):
+								this.cf.zones.firewall.rules.delete(domain_id, fwr['id'])
 
-					for wipe in setting['wipe']:
-						if (wipe == 'page_rules'):
-							params = {'match': 'all'}
-							page_rules = this.cf.zones.pagerules.get(domain_id, params=params)['result']
-							for i, pgr in enumerate(page_rules):
-								logging.debug(f"Will delete page rule {pgr}")
-								if (not this.dry_run):
-									this.cf.zones.pagerules.delete(domain_id, pgr['id'])
-								if (not i % 3):
-									time.sleep(1)  # rate limiting. keep us under 4 / sec.
-						elif (wipe == 'firewall_rules'):
-							firewall_rules = this.cf.zones.firewall.rules.get(domain_id)['result']
-							for i, fwr in enumerate(firewall_rules):
-								logging.debug(f"Will delete firewall rule {fwr}")
-								if (not this.dry_run):
-									this.cf.zones.firewall.rules.delete(domain_id, fwr['id'])
+							# rate limiting. keep us under 4 / sec.
+							if (not i % 3):
+								time.sleep(1)
 
-								# rate limiting. keep us under 4 / sec.
-								if (not i % 3):
-									time.sleep(1)
+						filters = this.cf.zones.filters.get(domain_id)['result']
+						for i, flt in enumerate(filters):
+							logging.debug(f"Will delete filter {flt}")
+							if (not this.dry_run):
+								this.cf.zones.filters.delete(domain_id, flt['id'])
 
-							filters = this.cf.zones.filters.get(domain_id)['result']
-							for i, flt in enumerate(filters):
-								logging.debug(f"Will delete filter {flt}")
-								if (not this.dry_run):
-									this.cf.zones.filters.delete(domain_id, flt['id'])
+							# rate limiting. keep us under 4 / sec.
+							if (not i % 3):
+								time.sleep(1)
 
-								# rate limiting. keep us under 4 / sec.
-								if (not i % 3):
-									time.sleep(1)
-					
-					this.DNSApplicator(setting, domain, domain_id, domain_name, domains_with_errors, precursor = this)
-					this.PageRuleApplicator(setting, domain, domain_id, domain_name, domains_with_errors, precursor = this)
-					this.FirewallApplicator(setting, domain, domain_id, domain_name, domains_with_errors, precursor = this)
-					this.CacheRuleApplicator(setting, domain, domain_id, domain_name, domains_with_errors, precursor = this)
+				this.DNSApplicator(setting, domain, domain_id, domain_name, domains_with_errors, precursor = this)
+				this.PageRuleApplicator(setting, domain, domain_id, domain_name, domains_with_errors, precursor = this)
+				this.FirewallApplicator(setting, domain, domain_id, domain_name, domains_with_errors, precursor = this)
+				this.CacheRuleApplicator(setting, domain, domain_id, domain_name, domains_with_errors, precursor = this)
 
-					if (this.testing):
-						break
+				if (this.testing):
+					break
 
-				logging.info(f"---- done with {domain_name} ----")
-
-			if (this.testing):
-				break
-
-			total_pages = raw_results['result_info']['total_pages']
-			if (page_number == total_pages):
-				break
+			logging.info(f"---- done with {domain_name} ----")
 
 		logging.info("Complete!")
 		if (len(domains_with_errors)):

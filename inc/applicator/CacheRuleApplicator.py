@@ -1,6 +1,5 @@
 import time
 import logging
-import CloudFlare
 from Applicator import Applicator
 
 class CacheRuleApplicator(Applicator):
@@ -22,12 +21,19 @@ class CacheRuleApplicator(Applicator):
 			if 'expression' not in rule:
 				continue
 			rule['expression'] = rule['expression'].replace("'",'"')
-		
-		currentRules = this.cf.zones.rulesets.phases.http_request_cache_settings.entrypoint.get(this.domain_id)
+		try:
+			currentRules = this.cf.rulesets.phases.get('http_request_cache_settings', zone_id=this.domain_id)
+		except Exception as e:
+			logging.error(str(e))
+			return
 
 		try:
-			[cache_rules['rules'].append(exist) for exist in currentRules['result']['rules'] if exist['description'] not in [rule['description'] for rule in cache_rules['rules']]]
+			[cache_rules['rules'].append(exist) for exist in currentRules.rules if exist.description not in [rule['description'] for rule in cache_rules['rules']]]
 		except Exception as e:
 			logging.warning(str(e))
 
-		this.cf.zones.rulesets.phases.http_request_cache_settings.entrypoint.put(this.domain_id, data=cache_rules)
+		try:
+			this.cf.rulesets.phases.update('http_request_cache_settings', zone_id=this.domain_id, **cache_rules)
+		except Exception as e:
+			logging.error(str(e))
+			return

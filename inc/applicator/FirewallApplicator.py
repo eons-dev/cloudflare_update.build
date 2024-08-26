@@ -1,6 +1,5 @@
 import time
 import logging
-import CloudFlare
 from Applicator import Applicator
 
 class FirewallApplicator(Applicator):
@@ -13,7 +12,7 @@ class FirewallApplicator(Applicator):
 			time.sleep(1)  # rate limiting
 
 			#Unlike DNS, this result does not depend on params and can be cached.
-			firewall_rules = this.cf.zones.firewall.rules.get(this.domain_id)['result']  # REQUEST
+			firewall_rules = this.cf.firewall.rules.list(this.domain_id)  # REQUEST
 
 			for i, fwr in enumerate(this.setting['firewall_rules']):
 
@@ -29,7 +28,7 @@ class FirewallApplicator(Applicator):
 				rule_to_update = None
 				if (len(firewall_rules)):
 					for existing in firewall_rules:	
-						if fwr['name'] == existing['filter']['description']:
+						if fwr['name'] == existing.filter.description:
 							rule_to_update = existing
 							break
 
@@ -65,7 +64,7 @@ class FirewallApplicator(Applicator):
 							result = this.cf.zones.firewall.rules.post(this.domain_id, data=rule_data) #REQUEST: Create
 							logging.info(f"Result: {result}")
 
-				except CloudFlare.exceptions.CloudFlareAPIError as e:
+				except Exception as e:
 					logging.error('API call failed (%d): %s\nData: %s' % (e, e, rule_data))
 					if (this.errors_are_fatal):
 						exit()

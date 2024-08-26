@@ -8,26 +8,26 @@ class Applicator(eons.StandardFunctor):
 
 		this.functionSucceeded = True
 		this.rollbackSucceeded = True
-		
-		this.requiredKWArgs.append("setting")
-		this.requiredKWArgs.append("domain")
-		this.requiredKWArgs.append("domain_id")
-		this.requiredKWArgs.append("domain_name")
-		this.requiredKWArgs.append("domains_with_errors")
-		this.requiredKWArgs.append("cf")
-		
-		this.optionalKWArgs['only_apply_to'] = []
-		this.optionalKWArgs['backup'] = True
-		this.optionalKWArgs['backup_path'] = "bak"
-		this.optionalKWArgs['dry_run'] = True
-		this.optionalKWArgs['testing'] = False
-		this.optionalKWArgs['errors_are_fatal'] = False
-		
-		this.argMapping.append("setting")
-		this.argMapping.append("domain")
-		this.argMapping.append("domain_id")
-		this.argMapping.append("domain_name")
-		this.argMapping.append("domains_with_errors")
+
+		this.arg.kw.required.append("setting")
+		this.arg.kw.required.append("domain")
+		this.arg.kw.required.append("domain_id")
+		this.arg.kw.required.append("domain_name")
+		this.arg.kw.required.append("domains_with_errors")
+		this.arg.kw.required.append("cf")
+
+		this.arg.kw.optional['only_apply_to'] = []
+		this.arg.kw.optional['backup'] = True
+		this.arg.kw.optional['backup_path'] = "bak"
+		this.arg.kw.optional['dry_run'] = True
+		this.arg.kw.optional['testing'] = False
+		this.arg.kw.optional['errors_are_fatal'] = False
+
+		this.arg.mapping.append("setting")
+		this.arg.mapping.append("domain")
+		this.arg.mapping.append("domain_id")
+		this.arg.mapping.append("domain_name")
+		this.arg.mapping.append("domains_with_errors")
 
 		this.dns_allows_multiple_records = ['TXT', 'MX']
 
