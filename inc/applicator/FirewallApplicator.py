@@ -12,7 +12,7 @@ class FirewallApplicator(Applicator):
 			time.sleep(1)  # rate limiting
 
 			#Unlike DNS, this result does not depend on params and can be cached.
-			firewall_rules = this.cf.firewall.rules.list(this.domain_id)  # REQUEST
+			firewall_rules = this.cf.firewall.rules.list(zone_id=this.domain_id)  # REQUEST
 
 			for i, fwr in enumerate(this.setting['firewall_rules']):
 
@@ -61,7 +61,7 @@ class FirewallApplicator(Applicator):
 
 						logging.info(f"Will create {fwr['name']} in {this.domain_name}")
 						if (not this.dry_run):
-							result = this.cf.zones.firewall.rules.post(this.domain_id, data=rule_data) #REQUEST: Create
+							result = this.cf.firewall.rules.post(this.domain_id, data=rule_data) #REQUEST: Create
 							logging.info(f"Result: {result}")
 
 				except Exception as e:

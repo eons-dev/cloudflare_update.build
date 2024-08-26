@@ -28,7 +28,7 @@ class DNSApplicator(Applicator):
 			params = {'name': dns['domain'], 'match': 'all'}
 			if (dns['type'] in this.dns_allows_multiple_records):
 				params['type'] = dns['type']
-			dns_records = this.cf.dns.records.get(this.domain_id, **params)  # REQUEST
+			dns_records = this.cf.dns.records.list(zone_id=this.domain_id, **params)  # REQUEST
 			existing_record = None
 
 			#Check for the proper record to update.
@@ -41,7 +41,7 @@ class DNSApplicator(Applicator):
 							if (existing_record is not None): # duplicate record found
 								logging.debug(f"Deleting duplicate record with: {existing_record.content}")
 								time.sleep(1) #Sleep just in case
-								result = this.cf.dns.records.delete(this.domain_id, existing.id) #possible additional request: Delete
+								result = this.cf.dns.records.delete(existing.id, zone_id=this.domain_id) #possible additional request: Delete
 							else:
 								existing_record = existing
 								logging.debug(f"Will update existing {existing_record.type} record containing: {existing_record.content}")
@@ -78,12 +78,12 @@ class DNSApplicator(Applicator):
 				if (existing_record is not None):
 					logging.info(f"Will delete existing record: {existing_record}")
 					if (not this.dry_run):
-						result = this.cf.dns.records.delete(this.domain_id, existing_record.id) #POSSIBLE REQUEST: Delete
+						result = this.cf.dns.records.delete(existing_record.id, zone_id=this.domain_id) #POSSIBLE REQUEST: Delete
 						logging.info(f"Result: {result}")
 
 				logging.info(f"Will create {dns['type']} record {dns['domain']} in {this.domain_name}")
 				if (not this.dry_run):
-					result = this.cf.dns.records.create(this.domain_id, **record_data)  # REQUEST: Create
+					result = this.cf.dns.records.create(zone_id=this.domain_id, **record_data)  # REQUEST: Create
 					logging.info(f"Result: {result}")
 
 			except Exception as e:

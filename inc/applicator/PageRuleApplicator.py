@@ -14,7 +14,7 @@ class PageRuleApplicator(Applicator):
 			time.sleep(1)  # rate limiting
 
 			#Unlike DNS, this result does not depend on params and can be cached.
-			page_rules = this.cf.pagerules.list(this.domain_id)  # REQUEST
+			page_rules = this.cf.pagerules.list(zone_id=this.domain_id)  # REQUEST
 
 			for i, pgr in enumerate(this.setting['page_rules']):
 
@@ -45,7 +45,7 @@ class PageRuleApplicator(Applicator):
 
 						logging.info(f"Will update {pgr['url']} in {this.domain_name}")
 						if (not this.dry_run):
-							result = this.cf.zones.pagerules.put(this.domain_id, r_id, data=rule_data) # REQUEST: Update
+							result = this.cf.pagerules.update(r_id, zone_id=this.domain_id, **rule_data) # REQUEST: Update
 							logging.info(f"Result: {result}")
 
 					else:
@@ -53,7 +53,7 @@ class PageRuleApplicator(Applicator):
 
 						logging.info(f"Will create {pgr['url']} in {this.domain_name}")
 						if (not this.dry_run):
-							result = this.cf.zones.pagerules.post(this.domain_id, data=rule_data) # REQUEST: Create
+							result = this.cf.pagerules.create(zone_id=this.domain_id, **rule_data) # REQUEST: Create
 							logging.info(f"Result: {result}")
 
 				except Exception as e:

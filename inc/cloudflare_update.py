@@ -89,7 +89,7 @@ class cloudflare_update(Builder):
 	def GetDomainConfig(this, domain_name, domain_id):
 		ret = {}
 		try:
-			dns_records = this.cf.dns.records.list(domain_id, type='TXT', name=f'_config.{domain_name}')
+			dns_records = this.cf.dns.records.list(zone_id=domain_id, type='TXT', name=f'_config.{domain_name}')
 			logging.debug(f"Config records: {dns_records}")
 
 			config_contents = dns_records[0].content
@@ -174,7 +174,7 @@ class cloudflare_update(Builder):
 
 			# DNS Records
 			try:
-				dns_records = this.cf.dns.records.list(domain_id)  # REQUEST
+				dns_records = this.cf.dns.records.list(zone_id=domain_id)  # REQUEST
 
 				backup_file.write(f"--- DNS RECORDS FOR {domain_name} ---\n")
 				for r in dns_records:
@@ -186,7 +186,7 @@ class cloudflare_update(Builder):
 
 			# Page Rules
 			try:
-				page_rules = this.cf.pagerules.list(domain_id)  # REQUEST
+				page_rules = this.cf.pagerules.list(zone_id=domain_id)  # REQUEST
 
 				backup_file.write(f"--- PAGE RULES FOR {domain_name} ---\n")
 				for r in page_rules:
@@ -253,7 +253,7 @@ class cloudflare_update(Builder):
 
 				for wipe in setting['wipe']:
 					if (wipe == 'page_rules'):
-						page_rules = this.cf.pagerules.list(domain_id)
+						page_rules = this.cf.pagerules.list(zone_id=domain_id)
 						for i, pgr in enumerate(page_rules):
 							logging.debug(f"Will delete page rule {pgr}")
 							if (not this.dry_run):
@@ -261,7 +261,7 @@ class cloudflare_update(Builder):
 							if (not i % 3):
 								time.sleep(1)  # rate limiting. keep us under 4 / sec.
 					elif (wipe == 'firewall_rules'):
-						firewall_rules = this.cf.firewall.rules.list(domain_id)
+						firewall_rules = this.cf.firewall.rules.list(zone_id=domain_id)
 						for i, fwr in enumerate(firewall_rules):
 							logging.debug(f"Will delete firewall rule {fwr}")
 							if (not this.dry_run):
@@ -271,7 +271,7 @@ class cloudflare_update(Builder):
 							if (not i % 3):
 								time.sleep(1)
 
-						filters = this.cf.filters.list(domain_id)
+						filters = this.cf.filters.list(zone_id=domain_id)
 						for i, flt in enumerate(filters):
 							logging.debug(f"Will delete filter {flt}")
 							if (not this.dry_run):
