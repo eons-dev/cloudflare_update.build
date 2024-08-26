@@ -233,7 +233,7 @@ class cloudflare_update(Builder):
 
 			if (this.purge_cache):
 				logging.info(f"Purging cache for {domain_name}")
-				this.cf.cache.purge(domain_id, purge_everything=True} # REQUEST
+				this.cf.cache.purge(domain_id, purge_everything=True) # REQUEST
 
 			for setting in this.config['domains']:
 				if ("match" not in setting):
