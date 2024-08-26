@@ -4,61 +4,58 @@ from Applicator import Applicator
 
 class PageRuleApplicator(Applicator):
 
-	def __init__(this, name="PageRuleApplicator"):
+	def __init__(this, name="PageRule Applicator"):
 		super().__init__(name)
+
+		this.settingId = "page_rules"
 				
 	def Apply(this):
+		#Unlike DNS, this result does not depend on params and can be cached.
+		page_rules = this.cf.pagerules.list(zone_id=this.domain_id)  # REQUEST
 
-		if ('page_rules' in this.setting):
+		for i, pgr in enumerate(this.setting['page_rules']):
 
-			time.sleep(1)  # rate limiting
+			# rate limiting. keep us under 4 / sec.
+			if (not i % 3):
+				time.sleep(1)
 
-			#Unlike DNS, this result does not depend on params and can be cached.
-			page_rules = this.cf.pagerules.list(zone_id=this.domain_id)  # REQUEST
+			logging.debug(f"Applying Page Rule Setting: {pgr}")
 
-			for i, pgr in enumerate(this.setting['page_rules']):
+			# TODO: input checking.
 
-				# rate limiting. keep us under 4 / sec.
-				if (not i % 3):
-					time.sleep(1)
+			# check for the proper rule to update.
+			rule_to_update = None
+			if (len(page_rules)):
+				for existing in page_rules:
+					if pgr['url'] in [target['constraint']['value'] for target in existing.targets]:
+						rule_to_update = existing
+						break
 
-				logging.debug(f"Applying Page Rule Setting: {pgr}")
+			targets = [{"target": "url", "constraint": {"operator": "matches", "value": pgr['url']}}]
+			rule_data = {"status": "active", "priority": 1, "actions": pgr['actions'], "targets": targets}
 
-				# TODO: input checking.
+			try:
+				result = {}
 
-				# check for the proper rule to update.
-				rule_to_update = None
-				if (len(page_rules)):
-					for existing in page_rules:
-						if pgr['url'] in [target['constraint']['value'] for target in existing.targets]:
-							rule_to_update = existing
-							break
+				if (rule_to_update is not None):
+					r_id = rule_to_update.id
 
-				targets = [{"target": "url", "constraint": {"operator": "matches", "value": pgr['url']}}]
-				rule_data = {"status": "active", "priority": 1, "actions": pgr['actions'], "targets": targets}
+					logging.info(f"Will update {pgr['url']} in {this.domain_name}")
+					if (not this.dry_run):
+						result = this.cf.pagerules.update(r_id, zone_id=this.domain_id, **rule_data) # REQUEST: Update
+						logging.info(f"Result: {result}")
 
-				try:
-					result = {}
+				else:
+					logging.info(f"No matching page rule found for {pgr['url']}")
 
-					if (rule_to_update is not None):
-						r_id = rule_to_update.id
+					logging.info(f"Will create {pgr['url']} in {this.domain_name}")
+					if (not this.dry_run):
+						result = this.cf.pagerules.create(zone_id=this.domain_id, **rule_data) # REQUEST: Create
+						logging.info(f"Result: {result}")
 
-						logging.info(f"Will update {pgr['url']} in {this.domain_name}")
-						if (not this.dry_run):
-							result = this.cf.pagerules.update(r_id, zone_id=this.domain_id, **rule_data) # REQUEST: Update
-							logging.info(f"Result: {result}")
-
-					else:
-						logging.info(f"No matching page rule found for {pgr['url']}")
-
-						logging.info(f"Will create {pgr['url']} in {this.domain_name}")
-						if (not this.dry_run):
-							result = this.cf.pagerules.create(zone_id=this.domain_id, **rule_data) # REQUEST: Create
-							logging.info(f"Result: {result}")
-
-				except Exception as e:
-					logging.error('API call failed (%d): %s\nData: %s' % (e, e, rule_data))
-					if (this.errors_are_fatal):
-						exit()
-					else:
-						this.domains_with_errors.append(this.domain)
+			except Exception as e:
+				logging.error('API call failed (%d): %s\nData: %s' % (e, e, rule_data))
+				if (this.errors_are_fatal):
+					exit()
+				else:
+					this.domains_with_errors.append(this.domain)

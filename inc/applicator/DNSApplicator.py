@@ -4,14 +4,12 @@ from Applicator import Applicator
 
 class DNSApplicator(Applicator):
 
-	def __init__(this, name="DNSApplicator"):
+	def __init__(this, name="DNS Applicator"):
 		super().__init__(name)
+
+		this.settingId = "dns"
 				
 	def Apply(this):
-
-		if ('dns' not in this.setting):
-			return
-		time.sleep(1)  # rate limiting
 
 		for i, dns in enumerate(this.setting['dns']):
 

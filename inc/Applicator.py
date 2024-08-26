@@ -31,8 +31,13 @@ class Applicator(eons.StandardFunctor):
 
 		this.dns_allows_multiple_records = ['TXT', 'MX']
 
+		this.settingId = None
+
 	def Function(this):
-		return this.Apply()
-	
+		if (this.settingId in this.setting):
+			time.sleep(1)  # rate limiting
+			return this.Apply()
+		return None
+
 	def Apply(this):
 		pass

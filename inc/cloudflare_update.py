@@ -202,10 +202,10 @@ class cloudflare_update(Builder):
 
 			# Firewall Rules
 			try:
-				fw_rules = this.cf.firewall.rules.list(domain_id)  # REQUEST
+				fw_rules = this.cf.ruleset.phases.get('http_request_firewall_custom ', zone_id=domain_id)  # REQUEST
 
 				backup_file.write(f"--- FIREWALL RULES FOR {domain_name} ---\n")
-				for r in fw_rules:
+				for r in fw_rules.rules:
 					logging.info(f"Got firewall rule: {r}")
 					backup_file.write(f"{domain_name} ({domain_id}): {r}\n")
 
@@ -264,26 +264,6 @@ class cloudflare_update(Builder):
 								this.cf.pagerules.delete(pgr.id, zone_id=domain_id)
 							if (not i % 3):
 								time.sleep(1)  # rate limiting. keep us under 4 / sec.
-					elif (wipe == 'firewall_rules'):
-						firewall_rules = this.cf.firewall.rules.list(domain_id)
-						for i, fwr in enumerate(firewall_rules):
-							logging.debug(f"Will delete firewall rule {fwr}")
-							if (not this.dry_run):
-								this.cf.firewall.rules.delete(fwr.id, zone_identifier=domain_id)
-
-							# rate limiting. keep us under 4 / sec.
-							if (not i % 3):
-								time.sleep(1)
-
-						filters = this.cf.filters.list(domain_id)
-						for i, flt in enumerate(filters):
-							logging.debug(f"Will delete filter {flt}")
-							if (not this.dry_run):
-								this.cf.filters.delete(flt.id, zone_identifier=domain_id)
-
-							# rate limiting. keep us under 4 / sec.
-							if (not i % 3):
-								time.sleep(1)
 
 				this.DNSApplicator(setting, zone, domain_id, domain_name, domains_with_errors, precursor = this)
 				this.PageRuleApplicator(setting, zone, domain_id, domain_name, domains_with_errors, precursor = this)
