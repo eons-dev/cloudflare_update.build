@@ -8,7 +8,7 @@ class RulesetApplicator(Applicator):
 	def __init__(this, name="Ruleset Applicator"):
 		super().__init__(name)
 
-		this.ruleset = eons.DotDict({
+		this.ruleset = eons.util.DotDict({
 			"phase": "http_request_firewall_custom",
 		})
 
