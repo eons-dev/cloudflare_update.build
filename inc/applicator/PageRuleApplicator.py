@@ -28,7 +28,7 @@ class PageRuleApplicator(Applicator):
 
 				# check for the proper rule to update.
 				rule_to_update = None
-				if (len(page_rules.result)):
+				if (len(page_rules)):
 					for existing in page_rules:
 						if pgr['url'] in [target['constraint']['value'] for target in existing.targets]:
 							rule_to_update = existing
