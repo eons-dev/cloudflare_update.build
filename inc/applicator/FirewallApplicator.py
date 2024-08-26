@@ -26,7 +26,7 @@ class FirewallApplicator(Applicator):
 
 				# check for the proper rule to update.
 				rule_to_update = None
-				if (len(firewall_rules)):
+				if (len(firewall_rules.result)):
 					for existing in firewall_rules:	
 						if fwr['name'] == existing.filter.description:
 							rule_to_update = existing

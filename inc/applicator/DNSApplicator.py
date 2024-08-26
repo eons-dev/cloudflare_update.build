@@ -33,7 +33,7 @@ class DNSApplicator(Applicator):
 
 			#Check for the proper record to update.
 			#This logic is complex in order to handle cases where you want to replace an A record with a CNAME or some other record type transmutation.
-			if (len(dns_records)):
+			if (len(dns_records.result)):
 				if (dns['type'] in this.dns_allows_multiple_records and 'update_term' in dns):
 					for existing in dns_records:
 						if (dns['domain'] == existing.name and dns['update_term'] in existing.content):
