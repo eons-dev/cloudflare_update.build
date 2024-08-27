@@ -9,3 +9,10 @@ class CacheRuleApplicator(RulesetApplicator):
 
 		this.settingId = "cache_rules"
 		this.ruleset.phase = "http_request_cache_settings"
+
+		this.ruleDataMap = eons.util.DotDict({
+			"action": "action",
+			"paused": False,
+			"description": "name",
+			"expression": "expression",
+		})
