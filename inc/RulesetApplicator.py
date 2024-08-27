@@ -15,9 +15,10 @@ class RulesetApplicator(Applicator):
 		this.ruleDataMap = {
 			"action": "action",
 			# "index": "index", # TODO...
-			# "paused": False,
+			"enabled": True,
 			"description": "description",
 			"expression": "expression",
+			"action_parameters": "action_parameters",
 		}
 
 	def transform_expression(this, expression):
@@ -55,7 +56,9 @@ class RulesetApplicator(Applicator):
 	def GetRuleData(this, ruleObject):
 		ret = {}
 		for datum in this.ruleDataMap.keys():
-			ret[datum] = this.GetRuleDatum(ruleObject, this.ruleDataMap[datum])
+			value = this.GetRuleDatum(ruleObject, this.ruleDataMap[datum])
+			if (value is not None):
+				ret[datum] = value
 		return ret
 
 

@@ -10,11 +10,3 @@ class CacheRuleApplicator(RulesetApplicator):
 
 		this.settingId = "cache_rules"
 		this.ruleset.phase = "http_request_cache_settings"
-
-		this.ruleDataMap = {
-			"action": "action",
-			"enabled": True,
-			"description": "description",
-			"expression": "expression",
-			"action_parameters": "action_parameters",
-		}
