@@ -14,8 +14,8 @@ class RulesetApplicator(Applicator):
 
 		this.ruleDataMap = {
 			"action": "action",
-			"index": "index",
-			"paused": False,
+			# "index": "index", # TODO...
+			# "paused": False,
 			"description": "description",
 			"expression": "expression",
 		}
@@ -84,7 +84,7 @@ class RulesetApplicator(Applicator):
 					break
 
 			if (ruleToUpdate is not None):
-				logging.info(f"Will update {rule['description']} in {domain_name}")
+				logging.info(f"Will update {rule['description']} in {this.domain_name}")
 				
 				ruleData[ruleToUpdate] = this.GetRuleData(rule)
 

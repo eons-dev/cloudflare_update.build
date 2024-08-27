@@ -202,7 +202,7 @@ class cloudflare_update(Builder):
 
 			# Firewall Rules
 			try:
-				fw_rules = this.cf.ruleset.phases.get('http_request_firewall_custom ', zone_id=domain_id)  # REQUEST
+				fw_rules = this.cf.rulesets.phases.get('http_request_firewall_custom ', zone_id=domain_id)  # REQUEST
 
 				backup_file.write(f"--- FIREWALL RULES FOR {domain_name} ---\n")
 				for r in fw_rules.rules:
