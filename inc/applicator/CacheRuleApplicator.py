@@ -5,7 +5,7 @@ from RulesetApplicator import RulesetApplicator
 
 class CacheRuleApplicator(RulesetApplicator):
 
-	def __init__(this, name="CacheRuleApplicator"):
+	def __init__(this, name="CacheRule Applicator"):
 		super().__init__(name)
 
 		this.settingId = "cache_rules"
