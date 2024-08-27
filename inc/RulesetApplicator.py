@@ -14,9 +14,9 @@ class RulesetApplicator(Applicator):
 
 		this.ruleDataMap = {
 			"action": "action",
-			"priority": "priority",
+			"index": "index",
 			"paused": False,
-			"description": "name",
+			"description": "description",
 			"expression": "expression",
 		}
 
