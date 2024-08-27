@@ -36,15 +36,15 @@ class RulesetApplicator(Applicator):
 		ret = None
 		try:
 			ret = ruleObject[datum]
-		except KeyError:
+		except:
 			try:
 				ret = getattr(ruleObject, datum)
-			except AttributeError:
+			except:
 				return None
 
 		try:
 			ret = getattr(this, f"transform_{datum}")(ret)
-		except AttributeError:
+		except:
 			pass
 
 		return ret
