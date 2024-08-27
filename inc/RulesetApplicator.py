@@ -76,8 +76,6 @@ class RulesetApplicator(Applicator):
 
 			logging.debug(f"Applying {this.name} Rule Setting: {rule}")
 
-			# TODO: input checking.
-
 			# check for the proper rule to update.
 			ruleToUpdate = None
 			for i, existing in enumerate(ruleData):
@@ -85,15 +83,15 @@ class RulesetApplicator(Applicator):
 					ruleToUpdate = i
 					break
 
-				if (ruleToUpdate is not None):
-					logging.info(f"Will update {rule['description']} in {domain_name}")
-					
-					ruleData[ruleToUpdate] = this.GetRuleData(rule)
+			if (ruleToUpdate is not None):
+				logging.info(f"Will update {rule['description']} in {domain_name}")
+				
+				ruleData[ruleToUpdate] = this.GetRuleData(rule)
 
-				else:
-					logging.info(f"Will create {rule['description']} in {this.domain_name}")
+			else:
+				logging.info(f"Will create {rule['description']} in {this.domain_name}")
 
-					ruleData.append(this.GetRuleData(rule))
+				ruleData.append(this.GetRuleData(rule))
 
 		try:
 			if (not this.dry_run):
