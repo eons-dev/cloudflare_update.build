@@ -245,9 +245,42 @@ class cloudflare_update(Builder):
 				setting_can_be_applied = True
 				logging.debug(f"Trying to match with {setting['match']}")
 				for key, value in setting['match'].items():
-					if (key not in domain_config or domain_config[key] != value):
+					if (key not in domain_config):
 						setting_can_be_applied = False
 						break
+					configValue = domain_config[key]
+					if (isinstance(value, list)):
+						if (isinstance(configValue, list)): # ALL of value iff both are lists
+							for v in value:
+								if (v not in configValue):
+									setting_can_be_applied = False
+									break
+						elif (isinstance(configValue, str)): # ANY iff one is a string and the other is a list
+							if (configValue not in value):
+								setting_can_be_applied = False
+								break
+						else:
+							logging.error(f"Invalid match value: {value} ({type(value)})")
+							setting_can_be_applied = False
+							break
+					elif (isinstance(value, str)):
+						if (isinstance(configValue, list)): # ANY iff one is a string and the other is a list
+							if (value not in configValue):
+								setting_can_be_applied = False
+								break
+						elif (isinstance(configValue, str)): # == iff both are strings
+							if (value != configValue):
+								setting_can_be_applied = False
+								break
+						else:
+							logging.error(f"Invalid match config: {configValue} ({type(configValue)})")
+							setting_can_be_applied = False
+							break
+					else:
+						logging.error(f"Invalid match value: {value} ({type(value)})")
+						setting_can_be_applied = False
+						break
+
 				if (not setting_can_be_applied):
 					continue
 
