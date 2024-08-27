@@ -12,13 +12,13 @@ class RulesetApplicator(Applicator):
 			"phase": "http_request_firewall_custom",
 		})
 
-		this.ruleDataMap = eons.util.DotDict({
+		this.ruleDataMap = {
 			"action": "action",
 			"priority": "priority",
 			"paused": False,
 			"description": "name",
 			"expression": "expression",
-		})
+		}
 
 	def transform_expression(this, expression):
 		return expression.replace("'", '"')

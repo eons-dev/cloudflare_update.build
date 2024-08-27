@@ -1,5 +1,6 @@
 import time
 import logging
+import eons
 from RulesetApplicator import RulesetApplicator
 
 class CacheRuleApplicator(RulesetApplicator):
@@ -10,9 +11,9 @@ class CacheRuleApplicator(RulesetApplicator):
 		this.settingId = "cache_rules"
 		this.ruleset.phase = "http_request_cache_settings"
 
-		this.ruleDataMap = eons.util.DotDict({
+		this.ruleDataMap = {
 			"action": "action",
 			"paused": False,
 			"description": "name",
 			"expression": "expression",
-		})
+		}
