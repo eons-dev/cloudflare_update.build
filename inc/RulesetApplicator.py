@@ -81,17 +81,17 @@ class RulesetApplicator(Applicator):
 			# check for the proper rule to update.
 			ruleToUpdate = None
 			for i, existing in enumerate(ruleData):
-				if rule['name'] == existing['description']:
+				if rule['description'] == existing['description']:
 					ruleToUpdate = i
 					break
 
 				if (ruleToUpdate is not None):
-					logging.info(f"Will update {rule['name']} in {domain_name}")
+					logging.info(f"Will update {rule['description']} in {domain_name}")
 					
 					ruleData[ruleToUpdate] = this.GetRuleData(rule)
 
 				else:
-					logging.info(f"Will create {rule['name']} in {this.domain_name}")
+					logging.info(f"Will create {rule['description']} in {this.domain_name}")
 
 					ruleData.append(this.GetRuleData(rule))
 

@@ -13,7 +13,8 @@ class CacheRuleApplicator(RulesetApplicator):
 
 		this.ruleDataMap = {
 			"action": "action",
-			"paused": False,
+			"enabled": True,
 			"description": "name",
 			"expression": "expression",
+			"action_parameters": "action_parameters",
 		}
