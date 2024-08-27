@@ -30,7 +30,7 @@ class RulesetApplicator(Applicator):
 	# For example, if you have a transform_name() method, it will be called with the value of ruleObject["name"] or ruleObject.name.
 	# See transform_expression() for an example.
 	def GetRuleDatum(this, ruleObject, datum):
-		if (not datum is str):
+		if (type(datum) is not str):
 			return datum
 
 		ret = None
