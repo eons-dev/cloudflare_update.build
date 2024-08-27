@@ -61,7 +61,18 @@ class RulesetApplicator(Applicator):
 		return ret
 
 
+	def CreateRulesetIfNotExists(this):
+		rulesets = this.cf.rulesets.list(zone_id=this.domain_id).result  # REQUEST
+		if (this.ruleset.phase not in [ruleset.phase for ruleset in rulesets]):
+			logging.info(f"Creating {this.ruleset.phase} ruleset for {this.domain_name}")
+			this.cf.rulesets.create(phase=this.ruleset.phase, zone_id=this.domain_id, kind='zone', name=this.settingId, rules=[]) # REQUEST
+		
+		time.sleep(1)
+
+
 	def Apply(this):
+		this.CreateRulesetIfNotExists()
+
 		rules = this.cf.rulesets.phases.get(this.ruleset.phase, zone_id=this.domain_id).rules  # REQUEST
 
 		ruleData = []
