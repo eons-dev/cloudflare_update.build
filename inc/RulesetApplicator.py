@@ -14,7 +14,6 @@ class RulesetApplicator(Applicator):
 
 		this.ruleDataMap = {
 			"action": "action",
-			# "index": "index", # TODO...
 			"enabled": True,
 			"description": "description",
 			"expression": "expression",
@@ -67,7 +66,9 @@ class RulesetApplicator(Applicator):
 
 		ruleData = []
 
-		if (rules is not None):
+		if (rules is not None and 
+			('wipe' in this.setting and this.settingId not in this.setting['wipe'])
+		):
 			for rule in rules:
 				ruleData.append(this.GetRuleData(rule))
 
