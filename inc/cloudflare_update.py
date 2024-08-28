@@ -304,15 +304,16 @@ class cloudflare_update(Builder):
 				setting = this.EvaluateSetting(setting, domain_name, domain_config)
 				logging.debug(f"Will apply {setting}")
 
-				for wipe in setting['wipe']:
-					if (wipe == 'page_rules'):
-						page_rules = this.cf.pagerules.list(zone_id=domain_id)
-						for i, pgr in enumerate(page_rules):
-							logging.debug(f"Will delete page rule {pgr}")
-							if (not this.dry_run):
-								this.cf.pagerules.delete(pgr.id, zone_id=domain_id)
-							if (not i % 3):
-								time.sleep(1)  # rate limiting. keep us under 4 / sec.
+				if ('wipe' in setting):
+					for wipe in setting['wipe']:
+						if (wipe == 'page_rules'):
+							page_rules = this.cf.pagerules.list(zone_id=domain_id)
+							for i, pgr in enumerate(page_rules):
+								logging.debug(f"Will delete page rule {pgr}")
+								if (not this.dry_run):
+									this.cf.pagerules.delete(pgr.id, zone_id=domain_id)
+								if (not i % 3):
+									time.sleep(1)  # rate limiting. keep us under 4 / sec.
 
 				this.DNSApplicator(setting, zone, domain_id, domain_name, domains_with_errors, precursor = this)
 				this.PageRuleApplicator(setting, zone, domain_id, domain_name, domains_with_errors, precursor = this)
