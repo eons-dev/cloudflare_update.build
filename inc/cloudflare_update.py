@@ -48,6 +48,10 @@ class cloudflare_update(Builder):
 
 
 	@eons.method(impl="External")
+	def RedirectApplicator(this):
+		pass
+
+	@eons.method(impl="External")
 	def CacheRuleApplicator(this):
 		pass
 
