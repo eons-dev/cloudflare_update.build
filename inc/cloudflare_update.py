@@ -319,6 +319,7 @@ class cloudflare_update(Builder):
 				this.PageRuleApplicator(setting, zone, domain_id, domain_name, domains_with_errors, precursor = this)
 				this.FirewallApplicator(setting, zone, domain_id, domain_name, domains_with_errors, precursor = this)
 				this.CacheRuleApplicator(setting, zone, domain_id, domain_name, domains_with_errors, precursor = this)
+				this.RedirectApplicator(setting, zone, domain_id, domain_name, domains_with_errors, precursor = this)
 
 				if (this.testing):
 					break
