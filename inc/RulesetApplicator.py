@@ -77,9 +77,10 @@ class RulesetApplicator(Applicator):
 
 		ruleData = []
 
-		if (rules is not None and 
+		if (rules is not None and (
+			('wipe' not in this.setting) or
 			('wipe' in this.setting and this.settingId not in this.setting['wipe'])
-		):
+		)):
 			for rule in rules:
 				ruleData.append(this.GetRuleData(rule))
 
