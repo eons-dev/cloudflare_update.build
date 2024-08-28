@@ -26,24 +26,18 @@ class RulesetApplicator(Applicator):
 	# Recursively transform action parameters.
 	# Primarily, this is used in case there is an expression somewhere in the action parameters.
 	def transform_action_parameters(this, action_parameters):
-
-		return action_parameters.replace("'", '"')
+		if (type(action_parameters) is dict):
+			for key in action_parameters:
+				action_parameters[key] = this.transform_action_parameters(action_parameters[key])
+			return action_parameters
 		
-		# THE FOLLOWING DOES NOTHING.
-		# Perhaps we need a json.loads somewhere?
-		#
-		# if (type(action_parameters) is dict):
-		# 	for key in action_parameters:
-		# 		action_parameters[key] = this.transform_action_parameters(action_parameters[key])
-		# 	return action_parameters
-		#
-		# if (type(action_parameters) is list):
-		# 	return [this.transform_action_parameters(param) for param in action_parameters]
-		#
-		# if (type(action_parameters) is str):
-		# 	return this.transform_expression(action_parameters)
-		#
-		# return action_parameters
+		if (type(action_parameters) is list):
+			return [this.transform_action_parameters(param) for param in action_parameters]
+		
+		if (type(action_parameters) is str):
+			return this.transform_expression(action_parameters)
+		
+		return action_parameters
 
 
 	# Extract a value from a ruleObject.
@@ -65,8 +59,11 @@ class RulesetApplicator(Applicator):
 			except Exception:
 				return None
 
+		logging.debug(f"Extracted {datum}: {ret} ({type(ret)})")
+
 		try:
 			ret = getattr(this, f"transform_{datum}")(ret)
+			logging.debug(f"Transformed {datum}: {ret} ({type(ret)})")
 		except Exception:
 			pass
 
@@ -81,6 +78,9 @@ class RulesetApplicator(Applicator):
 			value = this.GetRuleDatum(ruleObject, this.ruleDataMap[datum])
 			if (value is not None):
 				ret[datum] = value
+
+		logging.debug(f"Extracted Rule Data: {ret}")
+
 		return ret
 
 
