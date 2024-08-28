@@ -23,6 +23,22 @@ class RulesetApplicator(Applicator):
 	def transform_expression(this, expression):
 		return expression.replace("'", '"')
 
+	# Recursively transform action parameters.
+	# Primarily, this is used in case there is an expression somewhere in the action parameters.
+	def transform_action_parameters(this, action_parameters):
+		if (type(action_parameters) is dict):
+			for key in action_parameters:
+				action_parameters[key] = this.transform_action_parameters(action_parameters[key])
+			return action_parameters
+		
+		if (type(action_parameters) is list):
+			return [this.transform_action_parameters(param) for param in action_parameters]
+
+		if (type(action_parameters) is str):
+			return this.transform_expression(action_parameters)
+
+		return action_parameters
+
 	# Extract a value from a ruleObject.
 	# The datum to extract must be a string, otherwise the datum itself is returned.
 	# For example, if datum is "name", this will return something like ruleObject["name"] or ruleObject.name; but if the datum is False, this will return False.
