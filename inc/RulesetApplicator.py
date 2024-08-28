@@ -26,15 +26,15 @@ class RulesetApplicator(Applicator):
 	# Recursively transform action parameters.
 	# Primarily, this is used in case there is an expression somewhere in the action parameters.
 	def transform_action_parameters(this, action_parameters):
-		if (isinstance(action_parameters) is dict or isinstance(action_parameters) is eons.util.DotDict):
+		if (isinstance(action_parameters, dict) or isinstance(action_parameters, eons.util.DotDict)):
 			for key in action_parameters:
 				action_parameters[key] = this.transform_action_parameters(action_parameters[key])
 			return action_parameters
 		
-		if (isinstance(action_parameters) is list):
+		if (isinstance(action_parameters, list):
 			return [this.transform_action_parameters(param) for param in action_parameters]
 		
-		if (isinstance(action_parameters) is str):
+		if (isinstance(action_parameters, str):
 			return this.transform_expression(action_parameters)
 		
 		return action_parameters
@@ -47,7 +47,7 @@ class RulesetApplicator(Applicator):
 	# For example, if you have a transform_name() method, it will be called with the value of ruleObject["name"] or ruleObject.name.
 	# See transform_expression() for an example.
 	def GetRuleDatum(this, ruleObject, datum):
-		if (isinstance(datum) is not str):
+		if (not isinstance(datum, str)):
 			return datum
 
 		ret = None
