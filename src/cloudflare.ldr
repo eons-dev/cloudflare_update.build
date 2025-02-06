@@ -1,0 +1,27 @@
+cloudflare:
+(
+	cf_email
+	cf_token
+	purge_cache
+
+	authenticate::()
+	{
+		./cf := CloudFlare.CloudFlare(token = cf_token, raw = true)
+	}
+
+	get_domain_config::(domain_name, domain_id)
+	{
+		// TODO
+	}
+)
+{
+	authenticate()
+
+	page = 1
+	while(true)
+	{
+		raw_results := ./cf.zones.get(params = [per_page = 20, page])
+		break
+	}
+	print raw_results
+}
